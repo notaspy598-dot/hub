@@ -27,13 +27,30 @@ await db.exec(sql); // must be re-runnable
 const ME = '11111111-1111-1111-1111-111111111111', OTHER = '22222222-2222-2222-2222-222222222222';
 await db.exec(`
   INSERT INTO auth.users VALUES ('${ME}', 'me@x'), ('${OTHER}', 'other@x');
-  INSERT INTO lc_profile (chat_id, user_id) VALUES (100, '${ME}');
   INSERT INTO lc_profile (chat_id) VALUES (200);
   INSERT INTO lc_cards (chat_id, skill, question, options, answer, explanation) VALUES
     (100, 's', 'q1', '["a","b","c","d"]', 2, 'e1'),
     (100, 's', 'q2', '["a","b","c","d"]', 0, 'e2'),
     (200, 's', 'theirs', '["a","b","c","d"]', 1, 'e3');
 `);
+
+const as = async (uid, fn) => {
+  await db.exec(`SET test.uid = '${uid}'; SET ROLE authenticated;`);
+  try { return await fn(); } finally { await db.exec('RESET ROLE; RESET test.uid;'); }
+};
+
+// Linking: my first login claims chat 100 (no profile yet); nobody can take a claimed chat or move a link.
+await as(ME, async () => {
+  assert.equal((await q('SELECT lc_link_me(100) AS ok'))[0].ok, true);
+  assert.equal((await q('SELECT lc_link_me(999) AS ok'))[0].ok, true, 'already linked: no-op');
+});
+await as(OTHER, async () => {
+  assert.equal((await q('SELECT lc_link_me(100) AS ok'))[0].ok, false, 'cannot steal chat 100');
+});
+assert.deepEqual((await q('SELECT chat_id::int AS c FROM lc_profile WHERE user_id IS NOT NULL')).map(r => r.c), [100]);
+await db.exec('SET ROLE anon;');
+await assert.rejects(q('SELECT lc_link_me(200)'), /permission denied/);
+await db.exec('RESET ROLE;');
 
 // Bot path (n8n's role bypasses RLS): grade card 1 correctly for chat 100.
 let [g] = await q('SELECT * FROM lc_grade(1, 2, 100)');
@@ -47,11 +64,6 @@ const [bot] = await q(`SELECT g.is_correct AS correct, format(E'%s\\n\\n%s <b>%s
 FROM lc_grade($1::int, $2::int, $3::bigint) g;`, [3, 0, 200]);
 assert.equal(bot.correct, false);
 assert.equal(bot.result_msg, 'theirs\n\n❌ Answer: <b>b</b>\ne3\n\n🔥 1-day streak · ⭐ 2 XP');
-
-const as = async (uid, fn) => {
-  await db.exec(`SET test.uid = '${uid}'; SET ROLE authenticated;`);
-  try { return await fn(); } finally { await db.exec('RESET ROLE; RESET test.uid;'); }
-};
 
 await as(ME, async () => {
   assert.deepEqual((await q('SELECT chat_id FROM lc_profile')).map(r => Number(r.chat_id)), [100]);

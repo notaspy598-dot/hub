@@ -1,5 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID } from './config.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -13,6 +13,8 @@ function showTab() {
 }
 
 async function loadStats() {
+  // First login: tie this account to your Telegram chat so the bot's cards show up here.
+  if (TELEGRAM_ID) await sb.rpc('lc_link_me', { p_chat: TELEGRAM_ID });
   const [profile, due, style] = await Promise.all([
     sb.from('lc_profile').select('xp, streak, last_active').maybeSingle(),
     sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', new Date().toISOString()),

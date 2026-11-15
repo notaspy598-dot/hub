@@ -18,6 +18,19 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $f$
   SELECT chat_id FROM lc_profile WHERE user_id = auth.uid()
 $f$;
 
+-- The page calls this on login with the TELEGRAM_ID env var. It only claims a chat nobody owns yet,
+-- and never moves a login that is already linked.
+CREATE OR REPLACE FUNCTION lc_link_me(p_chat bigint) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN false; END IF;
+  IF NOT EXISTS (SELECT 1 FROM lc_profile WHERE user_id = auth.uid()) THEN
+    INSERT INTO lc_profile (chat_id, user_id) VALUES (p_chat, auth.uid())
+    ON CONFLICT (chat_id) DO UPDATE SET user_id = auth.uid() WHERE lc_profile.user_id IS NULL;
+  END IF;
+  RETURN EXISTS (SELECT 1 FROM lc_profile WHERE user_id = auth.uid());
+END $f$;
+
 -- One grading rule for the bot and the page: Leitner boxes (1,2,4,8,16,32 days), +10 XP right, +2 wrong, daily streak.
 -- Only cards that are due can be graded, so re-answering a card gives nothing.
 CREATE OR REPLACE FUNCTION lc_grade(p_card int, p_choice int, p_chat bigint)
@@ -48,7 +61,8 @@ $f$;
 REVOKE ALL ON FUNCTION lc_grade(int, int, bigint) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION lc_grade_mine(int, int) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION lc_my_chat() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION lc_grade_mine(int, int), lc_my_chat() TO authenticated;
+REVOKE ALL ON FUNCTION lc_link_me(bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION lc_grade_mine(int, int), lc_my_chat(), lc_link_me(bigint) TO authenticated;
 -- The Telegram bot calls lc_grade through n8n's Postgres credential. If that credential uses
 -- a user other than postgres, add it here: GRANT EXECUTE ON FUNCTION lc_grade(int, int, bigint) TO <user>;
 GRANT EXECUTE ON FUNCTION lc_grade(int, int, bigint) TO postgres;
