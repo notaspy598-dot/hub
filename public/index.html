@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Hub</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23e8590c'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'>H</text></svg>">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="card">
+      <h1>Hub</h1>
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Log in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <div id="app" hidden>
+    <header class="top">
+      <strong class="brand">Hub</strong>
+      <nav class="tabs" aria-label="Sections">
+        <a href="#learn" data-tab="learn">Learn</a>
+        <a href="#style" data-tab="style">Style</a>
+      </nav>
+      <div class="stats" aria-live="polite">
+        <span title="Day streak">🔥 <b id="streak">0</b></span>
+        <span title="XP">⭐ <b id="xp">0</b></span>
+      </div>
+      <button id="logout" class="ghost">Log out</button>
+    </header>
+
+    <section id="tab-learn" class="panel" hidden>
+      <p id="not-linked" class="notice" hidden>
+        Your login isn't linked to your Telegram bot yet, so there are no cards to show.
+        Run the "link" step from the hub README in Supabase Studio, then reload.
+      </p>
+      <div class="card hero">
+        <h2>Daily Starter</h2>
+        <p><b id="due">0</b> cards due today.</p>
+        <p class="muted">The Starter and mini-games arrive in phase 2. Send links to the Telegram bot to make new cards.</p>
+      </div>
+    </section>
+
+    <section id="tab-style" class="panel" hidden>
+      <div class="card hero">
+        <h2>Style board</h2>
+        <p><b id="style-count">0</b> images saved.</p>
+        <p class="muted">Uploading and the board arrive in phase 3.</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

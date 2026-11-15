@@ -1,0 +1,83 @@
+// Self-check for hub/sql/001_hub.sql against a stubbed Supabase (auth + storage).
+import { PGlite } from '@electric-sql/pglite';
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const db = new PGlite();
+const q = async (sql, p) => (await db.query(sql, p)).rows;
+
+await db.exec(`
+  CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
+  CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
+  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('test.uid', true), '')::uuid $$;
+  GRANT USAGE ON SCHEMA auth TO anon, authenticated; GRANT EXECUTE ON FUNCTION auth.uid() TO PUBLIC;
+  CREATE SCHEMA storage;
+  CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+  CREATE TABLE storage.objects (id serial PRIMARY KEY, bucket_id text, name text);
+  ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+  CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql AS $$ SELECT (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
+  GRANT USAGE ON SCHEMA storage TO authenticated; GRANT ALL ON storage.objects TO authenticated; GRANT USAGE ON SEQUENCE storage.objects_id_seq TO authenticated;
+  GRANT USAGE ON SCHEMA public TO anon, authenticated;
+`);
+
+const sql = readFileSync(process.argv[2], 'utf8');
+await db.exec(sql);
+await db.exec(sql); // must be re-runnable
+
+const ME = '11111111-1111-1111-1111-111111111111', OTHER = '22222222-2222-2222-2222-222222222222';
+await db.exec(`
+  INSERT INTO auth.users VALUES ('${ME}', 'me@x'), ('${OTHER}', 'other@x');
+  INSERT INTO lc_profile (chat_id, user_id) VALUES (100, '${ME}');
+  INSERT INTO lc_profile (chat_id) VALUES (200);
+  INSERT INTO lc_cards (chat_id, skill, question, options, answer, explanation) VALUES
+    (100, 's', 'q1', '["a","b","c","d"]', 2, 'e1'),
+    (100, 's', 'q2', '["a","b","c","d"]', 0, 'e2'),
+    (200, 's', 'theirs', '["a","b","c","d"]', 1, 'e3');
+`);
+
+// Bot path (n8n's role bypasses RLS): grade card 1 correctly for chat 100.
+let [g] = await q('SELECT * FROM lc_grade(1, 2, 100)');
+assert.equal(g.is_correct, true); assert.equal(g.answer_text, 'c'); assert.equal(g.new_xp, 10); assert.equal(g.new_streak, 1);
+assert.equal((await q('SELECT box FROM lc_cards WHERE id = 1'))[0].box, 1);
+assert.equal((await q('SELECT * FROM lc_grade(1, 2, 100)')).length, 0, 'not due any more');
+assert.equal((await q('SELECT * FROM lc_grade(3, 1, 100)')).length, 0, 'other chat card');
+
+// The exact query the n8n "Grade Answer" node runs (card 3, wrong answer, chat 200).
+const [bot] = await q(`SELECT g.is_correct AS correct, format(E'%s\\n\\n%s <b>%s</b>\\n%s\\n\\n🔥 %s-day streak · ⭐ %s XP', lc_esc(g.q_text), CASE WHEN g.is_correct THEN '✅ Correct:' ELSE '❌ Answer:' END, lc_esc(g.answer_text), lc_esc(g.expl), g.new_streak, g.new_xp) AS result_msg
+FROM lc_grade($1::int, $2::int, $3::bigint) g;`, [3, 0, 200]);
+assert.equal(bot.correct, false);
+assert.equal(bot.result_msg, 'theirs\n\n❌ Answer: <b>b</b>\ne3\n\n🔥 1-day streak · ⭐ 2 XP');
+
+const as = async (uid, fn) => {
+  await db.exec(`SET test.uid = '${uid}'; SET ROLE authenticated;`);
+  try { return await fn(); } finally { await db.exec('RESET ROLE; RESET test.uid;'); }
+};
+
+await as(ME, async () => {
+  assert.deepEqual((await q('SELECT chat_id FROM lc_profile')).map(r => Number(r.chat_id)), [100]);
+  assert.equal((await q('SELECT id FROM lc_cards')).length, 2, 'only my cards');
+  const [w] = await q('SELECT * FROM lc_grade_mine(2, 3)');
+  assert.equal(w.is_correct, false); assert.equal(w.new_xp, 12);
+  assert.equal((await q('SELECT * FROM lc_grade_mine(3, 1)')).length, 0, 'cannot grade others');
+  await assert.rejects(q('SELECT * FROM lc_grade(3, 1, 200)'), /permission denied/);
+  await assert.rejects(q('UPDATE lc_profile SET xp = 9999'), /permission denied/);
+  await q(`INSERT INTO style_items (path) VALUES ('${ME}/a.jpg')`);
+  assert.equal((await q('SELECT user_id FROM style_items'))[0].user_id, ME);
+  await assert.rejects(q(`INSERT INTO style_items (path, user_id) VALUES ('x', '${OTHER}')`), /row-level security/);
+  await q(`INSERT INTO storage.objects (bucket_id, name) VALUES ('style-images', '${ME}/a.jpg')`);
+  await assert.rejects(q(`INSERT INTO storage.objects (bucket_id, name) VALUES ('style-images', '${OTHER}/a.jpg')`), /row-level security/);
+});
+
+await as(OTHER, async () => {
+  assert.equal((await q('SELECT id FROM lc_cards')).length, 0, 'unlinked user sees no cards');
+  assert.equal((await q('SELECT id FROM style_items')).length, 0, 'cannot see my images');
+  assert.equal((await q('SELECT id FROM storage.objects')).length, 0);
+});
+
+await db.exec('SET ROLE anon;');
+await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
+await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);
+await db.exec('RESET ROLE;');
+
+assert.equal((await q("SELECT count(*)::int AS n FROM storage.buckets WHERE id = 'style-images' AND NOT public"))[0].n, 1);
+console.log('all checks passed');
