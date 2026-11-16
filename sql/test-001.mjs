@@ -1,4 +1,4 @@
-// Self-check for hub/sql/001_hub.sql against a stubbed Supabase (auth + storage).
+// Self-check for hub/sql/00*.sql against a stubbed Supabase (auth + storage).
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -45,9 +45,6 @@ const as = async (uid, fn) => {
 await as(ME, async () => {
   assert.equal((await q('SELECT lc_link_me(100) AS ok'))[0].ok, true);
   assert.equal((await q('SELECT lc_link_me(999) AS ok'))[0].ok, true, 'already linked: no-op');
-});
-await as(OTHER, async () => {
-  assert.equal((await q('SELECT lc_link_me(100) AS ok'))[0].ok, false, 'cannot steal chat 100');
 });
 assert.deepEqual((await q('SELECT chat_id::int AS c FROM lc_profile WHERE user_id IS NOT NULL')).map(r => r.c), [100]);
 await db.exec('SET ROLE anon;');
@@ -104,8 +101,30 @@ await as(OTHER, async () => {
   assert.equal((await q('SELECT * FROM lc_award_mine(10, true)')).length, 0, 'unlinked: nothing to award');
 });
 
+// 003: a login without Telegram gets its own learner (a negative ID), even if it asks for a chat that's taken.
 await as(OTHER, async () => {
-  assert.equal((await q('SELECT id FROM lc_cards')).length, 0, 'unlinked user sees no cards');
+  assert.equal((await q('SELECT lc_link_me(100) AS ok'))[0].ok, true);
+  assert.equal((await q('SELECT lc_link_me() AS ok'))[0].ok, true, 'second call is a no-op');
+  const mine = await q('SELECT chat_id FROM lc_profile');
+  assert.equal(mine.length, 1); assert.ok(Number(mine[0].chat_id) < 0, 'web-only learner ID');
+  assert.equal((await q('SELECT id FROM lc_cards')).length, 0, 'still none of my cards');
+  const id = (await q("SELECT lc_add_link('  https://example.com/a  ') AS id"))[0].id;
+  const [src] = await q('SELECT url, status, chat_id FROM lc_sources WHERE id = $1', [id]);
+  assert.deepEqual([src.url, src.status, src.chat_id], ['https://example.com/a', 'queued', mine[0].chat_id]);
+  await assert.rejects(q("SELECT lc_add_link('javascript:alert(1)')"), /look like a link/);
+  await assert.rejects(q("SELECT lc_add_link('https://a b')"), /look like a link/);
+  await assert.rejects(q("INSERT INTO lc_sources (chat_id, url) VALUES (1, 'x')"), /permission denied/);
+});
+await as(ME, async () => {
+  assert.equal((await q('SELECT id FROM lc_sources')).length, 0, 'cannot see their links');
+});
+await as(OTHER, async () => {
+  for (let i = 1; i < 20; i++) await q("SELECT lc_add_link('https://example.com/b')");
+  await assert.rejects(q("SELECT lc_add_link('https://example.com/c')"), /20 links this hour/);
+});
+
+await as(OTHER, async () => {
+  assert.equal((await q('SELECT id FROM lc_cards')).length, 0, 'other user sees none of my cards');
   assert.equal((await q('SELECT id FROM style_items')).length, 0, 'cannot see my images');
   assert.equal((await q('SELECT id FROM storage.objects')).length, 0);
 });
@@ -114,6 +133,7 @@ await db.exec('SET ROLE anon;');
 await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_award_mine(1, true)'), /permission denied/);
+await assert.rejects(q("SELECT lc_add_link('https://example.com')"), /permission denied/);
 await db.exec('RESET ROLE;');
 
 assert.equal((await q("SELECT count(*)::int AS n FROM storage.buckets WHERE id = 'style-images' AND NOT public"))[0].n, 1);

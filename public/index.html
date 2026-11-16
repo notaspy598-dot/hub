@@ -2,10 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#e8590c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Hub">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Hub</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23e8590c'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'>H</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -36,10 +42,7 @@
     </header>
 
     <section id="tab-learn" class="panel" hidden>
-      <p id="not-linked" class="notice" hidden>
-        Your login isn't linked to your Telegram bot, so there are no cards to show.
-        Check the TELEGRAM_ID setting in Coolify, then reload.
-      </p>
+      <p id="setup-error" class="notice" role="alert" hidden></p>
       <div id="learn-home" class="stack">
         <div class="card hero">
           <h2>Daily Starter</h2>
@@ -55,7 +58,21 @@
             <button data-game="speed">Speed round</button>
           </div>
         </div>
-        <p class="muted">Send links to the Telegram bot to make new cards.</p>
+        <div class="card hero">
+          <h2>Add a link</h2>
+          <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes 5 review cards and an interactive lesson.</p>
+          <form id="link-form" class="blank">
+            <input name="url" type="url" inputmode="url" required placeholder="https://…" aria-label="Link to learn from" autocomplete="off">
+            <button type="submit">Add</button>
+          </form>
+          <p id="link-error" class="error" role="alert"></p>
+          <ul id="links" class="list" aria-live="polite"></ul>
+          <p id="links-empty" class="muted" hidden>No links yet.</p>
+        </div>
+        <div id="skills-card" class="card hero" hidden>
+          <h2>Skills</h2>
+          <ul id="skills" class="list"></ul>
+        </div>
       </div>
       <div id="learn-stage" class="card stage" aria-live="polite" hidden></div>
     </section>

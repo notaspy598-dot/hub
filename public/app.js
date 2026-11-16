@@ -1,6 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID, LINK_WEBHOOK } from './config.js';
 import { initLearn } from './learn.js';
+import { initLinks, startLinks } from './links.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -14,8 +15,10 @@ function showTab() {
 }
 
 async function loadStats() {
-  // First login: tie this account to your Telegram chat so the bot's cards show up here.
-  if (TELEGRAM_ID) await sb.rpc('lc_link_me', { p_chat: TELEGRAM_ID });
+  // First login creates your learner profile. TELEGRAM_ID (optional) keeps the cards an old Telegram bot chat made.
+  const link = await sb.rpc('lc_link_me', TELEGRAM_ID ? { p_chat: TELEGRAM_ID } : {});
+  $('setup-error').hidden = !link.error;
+  if (link.error) $('setup-error').textContent = `Couldn't set up your profile (${link.error.message}). Run sql/003_web.sql in Supabase, then reload.`;
   const [profile, due, style] = await Promise.all([
     sb.from('lc_profile').select('xp, streak, last_active').maybeSingle(),
     sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', new Date().toISOString()),
@@ -26,7 +29,6 @@ async function loadStats() {
   const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   $('xp').textContent = p?.xp ?? 0;
   $('streak').textContent = p && p.last_active >= yesterday ? p.streak : 0;
-  $('not-linked').hidden = !!p;
   $('due').textContent = due.count ?? 0;
   $('style-count').textContent = style.count ?? 0;
 }
@@ -34,7 +36,7 @@ async function loadStats() {
 async function render(session) {
   $('login').hidden = !!session;
   $('app').hidden = !session;
-  if (session) { showTab(); await loadStats(); }
+  if (session) { showTab(); await loadStats(); startLinks(); }
 }
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -46,5 +48,7 @@ $('login-form').addEventListener('submit', async (e) => {
 });
 $('logout').addEventListener('click', () => sb.auth.signOut());
 initLearn(sb, loadStats);
+initLinks(sb, LINK_WEBHOOK, loadStats);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 addEventListener('hashchange', showTab);
 sb.auth.onAuthStateChange((_event, session) => { render(session); });

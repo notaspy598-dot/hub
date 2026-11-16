@@ -18,7 +18,7 @@ const must = ({ data, error }) => { if (error) throw error; return data; };
 const answerOf = (c) => String(c.options?.[c.answer] ?? '');
 const stage = (...kids) => $('learn-stage').replaceChildren(...kids);
 const back = () => el('button', { textContent: 'Back to Learn', onclick: () => home(true) });
-const notEnough = () => ({ xp: 0, note: 'Not enough cards yet. Send the Telegram bot a few links first.' });
+const notEnough = () => ({ xp: 0, note: 'Not enough cards yet. Add a few links first.' });
 
 function home(show) {
   $('learn-home').hidden = !show;
