@@ -22,7 +22,8 @@ In Coolify, open the Supabase service, make sure supabase-edge-functions is enab
 fi
 PROJECT=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$FN")
 sibling() { docker ps --filter "label=com.docker.compose.project=$PROJECT" --format '{{.Names}} {{.Image}}' | awk -v img="$1" '$2 ~ img {print $1; exit}'; }
-DB=$(sibling 'supabase/postgres'); AUTH=$(sibling 'gotrue')
+# The image name must end at its tag: supabase/postgres-meta (the meta helper, no psql) is not the database.
+DB=$(sibling 'supabase/postgres(:|@|$)'); AUTH=$(sibling 'supabase/gotrue(:|@|$)')
 [ -n "$DB" ] || fail "Found $FN but not Supabase's database container next to it."
 # Where the container's /home/deno/functions lives on this server, if it's a mounted folder (it survives redeploys).
 FN_DIR=$(docker inspect -f '{{range .Mounts}}{{println .Destination "|" .Source}}{{end}}' "$FN" | sed -n 's#^/home/deno/functions/* | ##p' | head -n1)
