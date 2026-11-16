@@ -53,9 +53,11 @@ function status(s, cards) {
   return [pip, ...(lesson ? [lesson, ' · '] : []), msg, build];
 }
 
-// A link's key ideas: the short lesson its quiz questions test.
-export const ideas = (list) => el('ul', { className: 'ideas' },
-  ...list.map((k) => el('li', {}, el('b', { textContent: k.point }), ' ', k.explain)));
+// A link's key ideas: the short lesson its quiz questions test. One swipeable card each, coloured like the Learn tab's.
+const LANES = ['coral', 'gold', 'mint', 'blue'];
+export const ideas = (list) => el('ol', { className: 'ideas', ariaLabel: `${list.length} key ideas, swipe for more` },
+  ...list.map((k, i) => el('li', { className: `idea-card lane-${LANES[i % 4]}` },
+    el('small', { textContent: `${i + 1} of ${list.length}` }), el('b', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null)));
 
 export async function loadLinks() {
   const [src, cards] = await Promise.all([

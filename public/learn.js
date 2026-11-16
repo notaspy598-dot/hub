@@ -2,7 +2,7 @@
 // Only the Starter's first answer to each card goes through lc_grade_mine (the schedule);
 // repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
 import { closeEnough, shuffle, grade } from './text.js';
-import { ideas, icon } from './links.js';
+import { icon } from './links.js';
 
 const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
 const STARTER_XP = 10;
@@ -119,14 +119,22 @@ async function starter() {
     el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back()));
 }
 
+// One key idea per card, so a dense topic reads a bite at a time. Back and Next step through them.
 function study(s) {
+  const list = s.key_ideas, n = list.length;
+  const link = (href, text) => href && el('a', { href, target: '_blank', rel: 'noopener' }, text, icon('external'));
   return new Promise((resolve) => {
-    const go = btn('Got it, quiz me', 'btn-go', resolve);
-    const link = (href, text) => href && el('a', { href, target: '_blank', rel: 'noopener' }, text, icon('external'));
-    stage(hud(el('span', { className: 'runstatus', textContent: 'New topic: learn it first' })),
-      el('div', { className: 'study' }, el('h2', { textContent: s.title || 'Key ideas' }),
-        ideas(s.key_ideas), el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson'), link(s.url, 'Original')), go));
-    go.focus();
+    const show = (i) => {
+      const last = i === n - 1, k = list[i];
+      const go = btn(last ? 'Got it, quiz me' : 'Next', 'btn-go', last ? resolve : () => show(i + 1));
+      stage(runbar(n, Array(i + 1).fill('perfect'), `Idea ${i + 1} of ${n}`),
+        el('div', { className: 'study' }, el('p', { className: 'prompt', textContent: `New topic: ${s.title || 'key ideas'}` }),
+          el('article', { className: `idea-card lane-${LANES[i % 4]}` }, el('h2', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null),
+          el('div', { className: 'row' }, i ? btn('Back', 'btn-light', () => show(i - 1)) : null, go),
+          last ? el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson'), link(s.url, 'Original')) : null));
+      go.focus();
+    };
+    show(0);
   });
 }
 
