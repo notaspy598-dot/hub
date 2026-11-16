@@ -20,9 +20,11 @@ await db.exec(`
   GRANT USAGE ON SCHEMA public TO anon, authenticated;
 `);
 
-const sql = readFileSync(process.argv[2], 'utf8');
-await db.exec(sql);
-await db.exec(sql); // must be re-runnable
+for (const file of process.argv.slice(2)) {
+  const sql = readFileSync(file, 'utf8');
+  await db.exec(sql);
+  await db.exec(sql); // must be re-runnable
+}
 
 const ME = '11111111-1111-1111-1111-111111111111', OTHER = '22222222-2222-2222-2222-222222222222';
 await db.exec(`
@@ -78,6 +80,28 @@ await as(ME, async () => {
   await assert.rejects(q(`INSERT INTO style_items (path, user_id) VALUES ('x', '${OTHER}')`), /row-level security/);
   await q(`INSERT INTO storage.objects (bucket_id, name) VALUES ('style-images', '${ME}/a.jpg')`);
   await assert.rejects(q(`INSERT INTO storage.objects (bucket_id, name) VALUES ('style-images', '${OTHER}/a.jpg')`), /row-level security/);
+
+  // Phase 2: games give XP only; finishing the Starter also counts the day. Neither touches the schedule.
+  const before = await q('SELECT box, due_at FROM lc_cards ORDER BY id');
+  let [a] = await q('SELECT * FROM lc_award_mine(5, false)');
+  assert.deepEqual([a.new_xp, a.new_streak], [17, 1]);
+  [a] = await q('SELECT * FROM lc_award_mine(9999, false)');
+  assert.equal(a.new_xp, 117, 'capped at 100 per call');
+  [a] = await q('SELECT * FROM lc_award_mine(-50, false)');
+  assert.equal(a.new_xp, 117, 'no negative XP');
+  assert.deepEqual(await q('SELECT box, due_at FROM lc_cards ORDER BY id'), before, 'schedule untouched');
+});
+await db.exec("UPDATE lc_profile SET last_active = current_date - 1, streak = 4 WHERE chat_id = 100");
+await as(ME, async () => {
+  let [a] = await q('SELECT * FROM lc_award_mine(0, false)');
+  assert.equal(a.new_streak, 4, 'a game alone does not count the day');
+  [a] = await q('SELECT * FROM lc_award_mine(10, true)');
+  assert.equal(a.new_streak, 5, 'finishing the Starter does');
+  [a] = await q('SELECT * FROM lc_award_mine(10, true)');
+  assert.equal(a.new_streak, 5, 'only once per day');
+});
+await as(OTHER, async () => {
+  assert.equal((await q('SELECT * FROM lc_award_mine(10, true)')).length, 0, 'unlinked: nothing to award');
 });
 
 await as(OTHER, async () => {
@@ -89,6 +113,7 @@ await as(OTHER, async () => {
 await db.exec('SET ROLE anon;');
 await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);
+await assert.rejects(q('SELECT * FROM lc_award_mine(1, true)'), /permission denied/);
 await db.exec('RESET ROLE;');
 
 assert.equal((await q("SELECT count(*)::int AS n FROM storage.buckets WHERE id = 'style-images' AND NOT public"))[0].n, 1);

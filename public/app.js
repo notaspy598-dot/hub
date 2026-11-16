@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID } from './config.js';
+import { initLearn } from './learn.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -44,5 +45,6 @@ $('login-form').addEventListener('submit', async (e) => {
   if (error) $('login-error').textContent = error.message;
 });
 $('logout').addEventListener('click', () => sb.auth.signOut());
+initLearn(sb, loadStats);
 addEventListener('hashchange', showTab);
 sb.auth.onAuthStateChange((_event, session) => { render(session); });

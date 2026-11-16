@@ -30,6 +30,7 @@
       <div class="stats" aria-live="polite">
         <span title="Day streak">🔥 <b id="streak">0</b></span>
         <span title="XP">⭐ <b id="xp">0</b></span>
+        <span title="Cards due">📚 <b id="due">0</b></span>
       </div>
       <button id="logout" class="ghost">Log out</button>
     </header>
@@ -39,11 +40,24 @@
         Your login isn't linked to your Telegram bot, so there are no cards to show.
         Check the TELEGRAM_ID setting in Coolify, then reload.
       </p>
-      <div class="card hero">
-        <h2>Daily Starter</h2>
-        <p><b id="due">0</b> cards due today.</p>
-        <p class="muted">The Starter and mini-games arrive in phase 2. Send links to the Telegram bot to make new cards.</p>
+      <div id="learn-home" class="stack">
+        <div class="card hero">
+          <h2>Daily Starter</h2>
+          <p>Today's due cards, up to 10. Missed ones come back until you get them right, then one mini-game finishes the day.</p>
+          <button id="start-starter">Start</button>
+        </div>
+        <div class="card hero">
+          <h2>Mini-games</h2>
+          <p class="muted">Practice with any of your cards. Games give XP but don't change when a card comes back.</p>
+          <div class="row">
+            <button data-game="match">Match pairs</button>
+            <button data-game="blank">Fill the blank</button>
+            <button data-game="speed">Speed round</button>
+          </div>
+        </div>
+        <p class="muted">Send links to the Telegram bot to make new cards.</p>
       </div>
+      <div id="learn-stage" class="card stage" aria-live="polite" hidden></div>
     </section>
 
     <section id="tab-style" class="panel" hidden>
