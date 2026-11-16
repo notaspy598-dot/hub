@@ -1,0 +1,40 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Users
+The owner plus a few invited people (sign-ups are closed; accounts are created by hand in Supabase). They use Hub mostly on a phone, installed to the home screen, for a few minutes a day: clear the Daily Starter to keep the streak, add links they want to learn from, and optionally play practice games. Because others log in too, first-run and empty states matter (no links yet, no cards due, no skills yet).
+
+## Product Purpose
+Turn saved links (YouTube, TikTok, Instagram, Facebook videos, Instagram carousels, articles) into short lessons of key ideas and spaced-repetition review cards, then make reviewing them a daily habit. Success is a kept streak and cards moving up to mastered. A Style tab will hold a board of saved images (phase 3, not built yet).
+
+## Positioning
+Learning from your own saved feed: every card comes from a link the person chose, the key ideas are taught before the quiz, recall comes before the options appear, and missed cards come back until they are right.
+
+## Operating Context
+Static PWA (`public/`) served by nginx; Supabase for login, data and storage; n8n turns links into lessons and cards; OpenMAIC hosts the full lessons. Android share sheet can send a link straight into the Add form. Works offline only for the shell; data needs a connection.
+
+## Capabilities and Constraints
+- Learn: Daily Starter (up to 10 due cards, study key ideas first, "I know it" / "Not sure" before options, flip reveal), practice games (Weak spots, Match pairs, Fill the blank, Speed round), Add a link with live status, Skills mastered/due.
+- Header shows streak, XP and cards due. Tabs: Learn, Style.
+- Plain HTML/CSS/vanilla JS modules, no build step. Keep element ids and JS hooks the scripts depend on.
+- Style board uploading is undecided (phase 3).
+
+## Brand Commitments
+Name: Hub. Gamified (streak, XP, mini-games) is intended. Visual references: patterns borrowed from real game UIs, translated into Hub's own look, never copying game art or logos.
+
+## Evidence on Hand
+No testimonials, metrics or screenshots. Icons in `public/icon-*.png` and `icon.svg` (orange "H").
+
+## Product Principles
+1. Learn before you're tested.
+2. Daily habit first; everything else is optional.
+3. Fast on a phone: one thumb, short sessions.
+4. Honest progress: numbers come from the database, never invented.
+
+## Accessibility & Inclusion
+Keyboard focus and screen-reader live regions already exist; keep them. Respect reduced motion.

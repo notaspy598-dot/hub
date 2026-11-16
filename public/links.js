@@ -1,3 +1,4 @@
+import { grade } from './text.js';
 // Add a link → lc_add_link queues it → n8n's "Learning Coach: Web Links" workflow makes the cards and the lesson.
 // The list shows each link's progress and, per skill, how much you've mastered (what the bot's /stats showed).
 const $ = (id) => document.getElementById(id);
@@ -10,6 +11,13 @@ function el(tag, props = {}, ...kids) {
   node.append(...kids.filter((k) => k != null));
   return node;
 }
+// An icon from the sprite in index.html.
+export function icon(name, extra = '') {
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), use = document.createElementNS(NS, 'use');
+  svg.setAttribute('class', `ico ${extra}`.trim()); svg.setAttribute('aria-hidden', 'true'); use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
 
 // The workflow only processes rows that are still 'queued', so pinging twice is harmless.
 // no-cors: we never read the answer, so n8n needs no CORS setup.
@@ -19,13 +27,15 @@ const stuck = (s) => BUSY.includes(s.status) && Date.now() - Date.parse(s.create
 
 // The lesson link shows as soon as its first parts exist; n8n keeps the note on how far it's got.
 function status(s, cards) {
-  const lesson = s.lesson_url && el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener', textContent: 'Open lesson ↗' });
-  if (s.status === 'ready' && lesson) return [lesson];
+  const lesson = s.lesson_url && el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener' }, 'Open lesson', icon('external'));
+  if (s.status === 'ready' && lesson) return [el('span', { className: 'pip ready' }), lesson];
   let text, bad = s.status === 'failed';
   if (stuck(s)) { bad = true; text = cards ? `${cards} cards saved, but the lesson never finished.` : 'This one got stuck. Try adding it again.'; }
   else text = { queued: 'Waiting to start…', reading: 'Reading the content…', generating: lesson ? s.note || 'More parts on the way…' : `${cards} cards ready · building the lesson…`, failed: s.note || 'Something went wrong.' }[s.status] ?? s.note ?? s.status;
+  // State is shape and word, not colour alone: solid dot ready, dashed spinner working, square failed.
+  const pip = el('span', { className: `pip ${bad ? 'bad' : 'busy'}` });
   const msg = el('span', { className: bad ? 'bad' : 'muted', textContent: text });
-  return lesson ? [lesson, ' · ', msg] : [msg];
+  return lesson ? [pip, lesson, ' · ', msg] : [pip, msg];
 }
 
 // A link's key ideas: the short lesson its quiz questions test.
@@ -45,13 +55,17 @@ export async function loadLinks() {
     k.total++; k.mastered += c.box >= 4; k.due += c.due_at <= now;
   }
   $('links').replaceChildren(...src.data.map((s) => el('li', {},
-    el('b', { textContent: s.title || s.url }), s.skill ? el('span', { className: 'muted', textContent: ` · ${s.skill}` }) : null,
-    el('br'), ...status(s, perSource[s.id] || 0),
+    el('span', { className: 'title', textContent: s.title || s.url }), s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
+    el('span', { className: 'state' }, ...status(s, perSource[s.id] || 0)),
     s.key_ideas?.length ? el('details', { open: opened.has(s.id), ontoggle: (e) => opened[e.target.open ? 'add' : 'delete'](s.id) },
-      el('summary', { textContent: 'Key ideas' }), ideas(s.key_ideas)) : null)));
+      el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas)) : null)));
   $('links-empty').hidden = src.data.length > 0;
-  $('skills').replaceChildren(...Object.entries(skills).map(([name, k]) =>
-    el('li', {}, el('b', { textContent: name }), `: ${k.mastered}/${k.total} mastered, ${k.due} due`)));
+  // Ranked by share mastered, most first.
+  // Each skill carries a rank letter from the share mastered, the same scale as a run's grade.
+  $('skills').replaceChildren(...Object.entries(skills).sort(([, a], [, b]) => b.mastered / b.total - a.mastered / a.total).map(([name, k]) =>
+    el('li', {}, el('span', { className: `rank g-${grade(k.mastered, k.total).toLowerCase()}`, textContent: grade(k.mastered, k.total), ariaLabel: `Rank ${grade(k.mastered, k.total)}` }), el('b', { textContent: name }),
+      el('span', { className: 'meter', role: 'img', ariaLabel: `${k.mastered} of ${k.total} mastered` }, el('i', { style: `width:${Math.round(100 * k.mastered / k.total)}%` })),
+      el('small', { textContent: `${k.mastered}/${k.total} mastered · ${k.due} due` }))));
   $('skills-card').hidden = !cards.data.length;
 
   // Keep checking while something is in progress; new cards also update the header.

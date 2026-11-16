@@ -1,7 +1,7 @@
 // Lets the installed app open without a connection. Network first, so a redeploy shows up on the next launch;
 // the cache is only the fallback. The Supabase library (jsDelivr) is cached too so the app can start; data never is.
-const CACHE = 'hub-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'learn.js', 'links.js', 'text.js', 'config.js', 'icon.svg', 'manifest.webmanifest'];
+const CACHE = 'hub-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'learn.js', 'links.js', 'text.js', 'config.js', 'icon.svg', 'manifest.webmanifest', 'fonts/unbounded.woff2'];
 
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));

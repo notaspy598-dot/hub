@@ -34,3 +34,9 @@ export function shuffle(list) {
   }
   return a;
 }
+
+// Rank letter from a share of right answers (or cards mastered): all of them is S.
+export const grade = (right, total) => {
+  const r = total ? right / total : 0;
+  return r >= 1 ? 'S' : r >= 0.8 ? 'A' : r >= 0.6 ? 'B' : 'C';
+};

@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-16T22:30:00Z",
+  "title": "Design System: Hub",
+  "extensions": {
+    "colorMeta": {
+      "stage": {
+        "role": "neutral",
+        "displayName": "Stage Indigo",
+        "canonical": "#1d1647",
+        "tonalRamp": [
+          "#090715",
+          "#0e0b24",
+          "#140f32",
+          "#1d1647",
+          "#565075",
+          "#8e8aa3",
+          "#bbb9c8",
+          "#e4e3e9"
+        ]
+      },
+      "hud": {
+        "role": "neutral",
+        "displayName": "HUD Indigo",
+        "canonical": "#150f38",
+        "tonalRamp": [
+          "#060411",
+          "#0a081c",
+          "#0f0a27",
+          "#150f38",
+          "#504b6a",
+          "#8a879c",
+          "#b9b7c3",
+          "#e3e2e7"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Indigo",
+        "canonical": "#251d5a",
+        "tonalRamp": [
+          "#0b091b",
+          "#120e2d",
+          "#1a143f",
+          "#251d5a",
+          "#5c5683",
+          "#928eac",
+          "#bebbce",
+          "#e5e4eb"
+        ]
+      },
+      "panel-up": {
+        "role": "neutral",
+        "displayName": "Raised Indigo",
+        "canonical": "#2f2670",
+        "tonalRamp": [
+          "#0e0b22",
+          "#181338",
+          "#211b4e",
+          "#2f2670",
+          "#635c94",
+          "#9792b8",
+          "#c1bed4",
+          "#e6e5ee"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line Indigo",
+        "canonical": "#3b3185",
+        "tonalRamp": [
+          "#120f28",
+          "#1e1842",
+          "#29225d",
+          "#3b3185",
+          "#6c64a4",
+          "#9d98c2",
+          "#c4c1da",
+          "#e7e6f0"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "#f8f4ff",
+        "tonalRamp": [
+          "#4a494c",
+          "#7c7a80",
+          "#aeabb2",
+          "#f8f4ff",
+          "#faf7ff",
+          "#fcfaff",
+          "#fdfcff",
+          "#fefeff"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#c4bcef",
+        "tonalRamp": [
+          "#3b3848",
+          "#625e78",
+          "#8984a7",
+          "#c4bcef",
+          "#d3cdf3",
+          "#e2def7",
+          "#edebfa",
+          "#f8f7fd"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "canonical": "#150f38"
+      },
+      "coral": {
+        "role": "secondary",
+        "displayName": "Coral Lane",
+        "canonical": "#ff5a36",
+        "tonalRamp": [
+          "#4c1b10",
+          "#802d1b",
+          "#b23f26",
+          "#ff5a36",
+          "#ff8368",
+          "#ffac9a",
+          "#ffcec3",
+          "#ffebe7"
+        ]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Gold Lane",
+        "canonical": "#ffc42e",
+        "tonalRamp": [
+          "#4c3b0e",
+          "#806217",
+          "#b28920",
+          "#ffc42e",
+          "#ffd362",
+          "#ffe296",
+          "#ffedc0",
+          "#fff8e6"
+        ]
+      },
+      "mint": {
+        "role": "secondary",
+        "displayName": "Mint Lane",
+        "canonical": "#2fd3a4",
+        "tonalRamp": [
+          "#0e3f31",
+          "#186a52",
+          "#219473",
+          "#2fd3a4",
+          "#63debb",
+          "#97e9d2",
+          "#c1f2e4",
+          "#e6faf4"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Blue Lane",
+        "canonical": "#4d7cff",
+        "tonalRamp": [
+          "#17254c",
+          "#263e80",
+          "#3657b2",
+          "#4d7cff",
+          "#7a9dff",
+          "#a6beff",
+          "#cad8ff",
+          "#eaefff"
+        ]
+      },
+      "coral-deep": {
+        "role": "secondary",
+        "displayName": "Coral Lane Edge",
+        "canonical": "#b8331a"
+      },
+      "gold-deep": {
+        "role": "secondary",
+        "displayName": "Gold Lane Edge",
+        "canonical": "#b5850a"
+      },
+      "mint-deep": {
+        "role": "secondary",
+        "displayName": "Mint Lane Edge",
+        "canonical": "#138a69"
+      },
+      "blue-deep": {
+        "role": "secondary",
+        "displayName": "Blue Lane Edge",
+        "canonical": "#2f4fc0"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display Numerals",
+        "purpose": "Big counts and grades only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Starter and results headings."
+      },
+      "judgement": {
+        "displayName": "Judgement Stamp",
+        "purpose": "PERFECT / GOOD / MISS; uppercase, oblique 8deg."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings and button labels."
+      },
+      "prompt": {
+        "displayName": "Prompt",
+        "purpose": "The card question on a run screen."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Everything read to learn."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Stat units, subtitles, statuses, errors."
+      }
+    },
+    "shadows": [
+      {
+        "name": "key-travel",
+        "value": "0 4px 0 var(--edge)",
+        "purpose": "Buttons; collapses on press."
+      },
+      {
+        "name": "row-travel",
+        "value": "0 3px 0 var(--hud)",
+        "purpose": "Game rows, options, match tiles; collapses on press."
+      },
+      {
+        "name": "lane-key-inset",
+        "value": "inset 0 -3px 0 var(--lane-deep)",
+        "purpose": "Lettered lane key."
+      },
+      {
+        "name": "rank-edge",
+        "value": "0 3px 0 <lane-deep>",
+        "purpose": "Skill rank stamp, deep edge of its grade lane."
+      },
+      {
+        "name": "grade-edge",
+        "value": "0 8px 0 <lane-deep>",
+        "purpose": "Results grade stamp, deep edge of its grade lane."
+      },
+      {
+        "name": "sheet-lift",
+        "value": "0 -12px 32px rgb(10 7 34 / .45)",
+        "purpose": "Answer sheet only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Sheet rise, stamps, note fall, disclosure chevron."
+      },
+      {
+        "name": "press",
+        "value": "80ms",
+        "purpose": "Key travel on press."
+      },
+      {
+        "name": "sheet-rise",
+        "value": "380ms",
+        "purpose": "Answer sheet slides up."
+      },
+      {
+        "name": "stamp",
+        "value": "350-500ms, scale 1.5 to 1",
+        "purpose": "Judgements, HUD pops, grade."
+      },
+      {
+        "name": "note-fall",
+        "value": "1.1s, 90ms stagger",
+        "purpose": "Phone Starter highway, once on load."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation and transition off",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stat-labels-hidden",
+        "value": "max-width: 420px"
+      },
+      {
+        "name": "games-two-up",
+        "value": "560px to 859px"
+      },
+      {
+        "name": "hud-inline-tabs",
+        "value": "760px"
+      },
+      {
+        "name": "two-column",
+        "value": "860px"
+      },
+      {
+        "name": "stage-max",
+        "value": "640px"
+      },
+      {
+        "name": "content-max",
+        "value": "1040px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink press-down button for the main action on indigo surfaces.",
+      "html": "<button class=\"ds-btn ds-btn-primary\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 4v16l13-8z\"/></svg>Log in</button>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-btn{--face:var(--panel-up);--edge:var(--hud);--text:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:48px;padding:.7rem 1.25rem;border:0;border-radius:var(--r);background:var(--face);color:var(--text);font:700 1rem/1 var(--display);letter-spacing:.02em;box-shadow:0 4px 0 var(--edge);cursor:pointer;transition:transform .08s,box-shadow .08s,filter .15s} .ds-btn:hover{filter:brightness(1.08)} .ds-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)} .ds-btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-btn-primary{--face:var(--ink);--edge:#9d93d6;--text:var(--ink-dark)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Raised indigo press-down button for secondary actions.",
+      "html": "<button class=\"ds-btn\">Not sure</button>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-btn{--face:var(--panel-up);--edge:var(--hud);--text:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:48px;padding:.7rem 1.25rem;border:0;border-radius:var(--r);background:var(--face);color:var(--text);font:700 1rem/1 var(--display);letter-spacing:.02em;box-shadow:0 4px 0 var(--edge);cursor:pointer;transition:transform .08s,box-shadow .08s,filter .15s} .ds-btn:hover{filter:brightness(1.08)} .ds-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)} .ds-btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px} "
+    },
+    {
+      "name": "Dark Button",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Dark-ink action on a lane-coloured surface (the Starter).",
+      "html": "<div class=\"ds-on-coral\"><button class=\"ds-btn ds-btn-dark\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 4v16l13-8z\"/></svg>Start</button></div>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-btn{--face:var(--panel-up);--edge:var(--hud);--text:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:48px;padding:.7rem 1.25rem;border:0;border-radius:var(--r);background:var(--face);color:var(--text);font:700 1rem/1 var(--display);letter-spacing:.02em;box-shadow:0 4px 0 var(--edge);cursor:pointer;transition:transform .08s,box-shadow .08s,filter .15s} .ds-btn:hover{filter:brightness(1.08)} .ds-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)} .ds-btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-on-coral{background:var(--coral);padding:1.25rem;border-radius:var(--r-lg)} .ds-btn-dark{--face:var(--ink-dark);--edge:#0a0722}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "HUD-well input with 2px line border; ink border on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"https://www.youtube.com/...\">",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-input{font:400 1rem/1.5 system-ui,sans-serif;width:100%;min-height:48px;padding:.7rem .85rem;border:2px solid var(--line);border-radius:var(--r);background:var(--hud);color:var(--ink)} .ds-input::placeholder{color:#8f86c4} .ds-input:focus{border-color:var(--ink);outline:none}"
+    },
+    {
+      "name": "HUD Tabs and Stat",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Pill tabs with an ink active pill, beside a panel stat chip.",
+      "html": "<nav class=\"ds-hud\"><span class=\"ds-stat\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 10.941c2.333-3.308.167-7.823-1-8.941 0 3.395-2.235 5.299-3.667 6.706C5.903 10.114 5 12.327 5 14.294 5 17.998 8.134 21 12 21s7-3.002 7-6.706c0-1.712-1.232-4.403-2.333-5.588-2.084 3.353-3.257 3.353-4.667 2.235\"/></svg><b>12</b><small>day streak</small></span><a class=\"ds-tab ds-on\" href=\"#\">Learn</a><a class=\"ds-tab\" href=\"#\">Style</a></nav>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-hud{display:flex;gap:.5rem;align-items:center;padding:.6rem 16px;background:var(--hud);border-bottom:2px solid var(--line);font:400 1rem/1.5 system-ui,sans-serif} .ds-stat{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .55rem;border-radius:10px;background:var(--panel);color:var(--ink-2);font-size:.8125rem} .ds-stat b{font:800 1rem/1 var(--display);color:var(--ink)} .ds-tab{display:inline-flex;align-items:center;min-height:40px;padding:0 1.1rem;border-radius:999px;color:var(--ink-2);text-decoration:none;font-weight:700} .ds-tab:hover{color:var(--ink)} .ds-tab:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-tab.ds-on{background:var(--ink);color:var(--ink-dark)}"
+    },
+    {
+      "name": "Game Row",
+      "kind": "card",
+      "refersTo": "game-row",
+      "description": "Practice game row with its lettered lane key; each game owns one lane.",
+      "html": "<button class=\"ds-game\"><span class=\"ds-key\">M</span><span><b>Match pairs</b><small>6 pairs against the clock</small></span><span class=\"ds-chev\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\"/></svg></span></button>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-game{display:flex;align-items:center;gap:.85rem;width:100%;min-height:60px;padding:.6rem .75rem;border:0;border-radius:var(--r);background:var(--panel-up);color:var(--ink);text-align:left;font:400 1rem/1.5 system-ui,sans-serif;box-shadow:0 3px 0 var(--hud);cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s} .ds-game:hover{background:#382e80} .ds-game:active{transform:translateY(3px);box-shadow:0 0 0 var(--hud)} .ds-game:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-game b{display:block;font-weight:700} .ds-game small{display:block;color:var(--ink-2);font-size:.8125rem} .ds-chev{margin-left:auto;color:var(--ink-2)} .ds-key{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:11px;background:var(--gold);color:var(--ink-dark);font:800 1rem/1 var(--display);box-shadow:inset 0 -3px 0 var(--gold-deep)}"
+    },
+    {
+      "name": "Answer Option",
+      "kind": "custom",
+      "refersTo": "option",
+      "description": "Answer in a lane; the lane colour shows on the border on hover.",
+      "html": "<button class=\"ds-option\"><span class=\"ds-key\">3</span><span>Bias cut drapes best</span></button>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-option{display:flex;align-items:center;gap:.85rem;width:100%;min-height:60px;padding:.65rem .8rem;border:2px solid var(--line);border-radius:var(--r);background:var(--panel);color:var(--ink);text-align:left;font:600 1rem/1.5 system-ui,sans-serif;box-shadow:0 3px 0 var(--hud);cursor:pointer;transition:transform .08s,box-shadow .08s,border-color .15s} .ds-option:hover{border-color:var(--mint)} .ds-option:active{transform:translateY(3px);box-shadow:none} .ds-option:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-key{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:11px;background:var(--mint);color:var(--ink-dark);font:800 .8125rem/1 var(--display);box-shadow:inset 0 -3px 0 var(--mint-deep)}"
+    },
+    {
+      "name": "Answer Sheet",
+      "kind": "custom",
+      "refersTo": "sheet-perfect",
+      "description": "Signature slide-up sheet carrying the judgement stamp (word + icon + colour).",
+      "html": "<div class=\"ds-sheet\"><p class=\"ds-judge\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12l5 5L20 7\"/></svg>Perfect</p><p>Bias-cut cloth falls along the body.</p><button class=\"ds-btn\">Continue</button></div>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-sheet{display:grid;gap:.55rem;padding:1.1rem 16px;color:var(--ink-dark);background:var(--mint);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -12px 32px rgb(10 7 34 / .45);font:400 1rem/1.5 system-ui,sans-serif;animation:ds-rise .38s var(--ease)} .ds-judge{margin:0;display:flex;align-items:center;gap:.6rem;font:800 1.75rem/1 var(--display);letter-spacing:.04em;font-style:oblique 8deg;text-transform:uppercase;animation:ds-stamp .42s var(--ease) both} .ds-sheet p{margin:0} .ds-btn{min-height:48px;border:0;border-radius:var(--r);background:var(--ink-dark);color:var(--ink);font:700 1rem/1 var(--display);box-shadow:0 4px 0 #0a0722;cursor:pointer;transition:transform .08s,box-shadow .08s} .ds-btn:active{transform:translateY(4px);box-shadow:none} .ds-btn:focus-visible{outline:3px solid var(--ink-dark);outline-offset:3px} @keyframes ds-rise{from{transform:translateY(100%)}} @keyframes ds-stamp{from{transform:scale(1.5);opacity:0}} @media (prefers-reduced-motion:reduce){.ds-sheet,.ds-judge{animation:none}}"
+    },
+    {
+      "name": "Run HUD Row",
+      "kind": "custom",
+      "refersTo": "button-icon",
+      "description": "One HUD row per run screen: leave (X) first, then the judgement-filled track and count.",
+      "html": "<div class=\"ds-runbar\"><button class=\"ds-quit\" aria-label=\"Leave\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6L6 18M6 6l12 12\"/></svg></button><ol class=\"ds-track\"><li class=\"p\"></li><li class=\"g\"></li><li class=\"m\"></li><li></li><li></li></ol><span class=\"ds-left\">2 left</span></div>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-runbar{display:flex;align-items:center;gap:.75rem;min-height:44px;background:var(--stage);padding:.5rem;font:600 .8125rem/1.5 system-ui,sans-serif} .ds-quit{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:var(--ink-2);cursor:pointer} .ds-quit:hover{background:var(--panel);color:var(--ink)} .ds-quit:focus-visible{outline:3px solid var(--ink);outline-offset:3px} .ds-track{flex:1;list-style:none;margin:0;padding:0;display:flex;gap:4px} .ds-track li{flex:1;height:12px;border-radius:4px;background:var(--line)} .ds-track .p{background:var(--mint)} .ds-track .g{background:var(--gold)} .ds-track .m{background:var(--coral)} .ds-left{color:var(--ink-2);white-space:nowrap}"
+    },
+    {
+      "name": "Results Grade",
+      "kind": "custom",
+      "refersTo": "grade",
+      "description": "Rotated grade stamp in its lane colour with a solid deep edge.",
+      "html": "<div class=\"ds-grade\">A</div>",
+      "css": ":host{--stage:#1d1647;--hud:#150f38;--panel:#251d5a;--panel-up:#2f2670;--line:#3b3185;--ink:#f8f4ff;--ink-2:#c4bcef;--ink-dark:#150f38;--coral:#ff5a36;--gold:#ffc42e;--mint:#2fd3a4;--blue:#4d7cff;--coral-deep:#b8331a;--gold-deep:#b5850a;--mint-deep:#138a69;--blue-deep:#2f4fc0;--r:14px;--r-lg:20px;--display:Unbounded,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)} .ds-grade{display:grid;place-items:center;width:8.5rem;height:8.5rem;border-radius:28px;rotate:-4deg;font:900 5rem/1 var(--display);color:var(--ink-dark);background:var(--gold);box-shadow:0 8px 0 var(--gold-deep)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Rhythm Stage",
+    "overview": "Every review is a note you hit. Hub is a rhythm game's stage at night: a deep indigo floor, a darker HUD strip pinned to the top, raised indigo panels, and four lane colours that light up only when something is being played or judged. Answers sit in lanes, every hit gets a stamped judgement, and a finished day gets a grade.\n\nThe density is phone-first and thumb-sized: 48px buttons, 60px game and answer rows, one column under 860px, two above. Reading text stays in the system face; Unbounded carries numerals, headings, buttons and judgements, so the game voice and the reading voice never blur. Pressable things are chunky and physical: a solid bottom edge is the key travel, and it drops to zero on press.\n\nThe world borrows grammar from real rhythm-game results screens and Duolingo's lesson flow (top progress track, slide-up answer sheet, press-down buttons, stat tiles), translated into Hub's own indigo-and-lanes look, never copying game art.",
+    "keyCharacteristics": [
+      "Dark indigo tonal layers (stage, HUD, panel, panel-up) instead of soft shadows.",
+      "Four lane colours with one meaning each: a lane, a game, a judgement, a grade.",
+      "Unbounded for numbers and the game voice; system UI for reading.",
+      "Press-down buttons with a solid bottom edge that travels on press.",
+      "Judgements are always word + icon + colour, stamped in."
+    ],
+    "rules": [
+      {
+        "name": "The Lane Meaning Rule",
+        "body": "Coral, gold, mint and blue only ever mean an answer lane, a game, a judgement (Perfect mint, Good gold, Miss coral) or a grade. Never use one for decoration, a primary action, or a generic status.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Action Rule",
+        "body": "Primary buttons are ink with dark-ink text; secondary buttons are raised indigo. On a lane-coloured surface (the Starter) the action is the dark button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Voices Rule",
+        "body": "Unbounded is for numbers, headings, buttons and judgements; anything the user reads to learn is system UI.",
+        "section": "typography"
+      },
+      {
+        "name": "The Key Travel Rule",
+        "body": "A solid bottom edge means \"this can be pressed or this was stamped\". It always collapses on press; it never appears on static panels.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep every lane colour tied to a lane, a game, a judgement or a grade: Perfect is mint, Good is gold, Miss is coral.",
+      "Do make primary buttons ink and secondary buttons raised indigo; use the dark button on a lane-coloured surface.",
+      "Do show every judgement as word + icon + colour, never colour alone.",
+      "Do start every run screen's single HUD row with the leave (X) button.",
+      "Do take icons from the inline Tabler outline sprite in index.html (2px stroke, round caps, currentColor).",
+      "Do collapse the solid bottom edge on press for anything that has one.",
+      "Do keep all animation behind prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't put kicker or eyebrow labels above headings.",
+      "Don't use a lane colour for a primary action, decoration or general status.",
+      "Don't add type sizes beyond the three-step ramp except for display numerals.",
+      "Don't use emoji or text glyphs as icons.",
+      "Don't give static panels a bottom edge or soft shadow; the sheet is the only floating surface."
+    ]
+  }
+}

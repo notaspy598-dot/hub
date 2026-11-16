@@ -30,6 +30,12 @@ async function loadStats() {
   $('xp').textContent = p?.xp ?? 0;
   $('streak').textContent = p && p.last_active >= yesterday ? p.streak : 0;
   $('due').textContent = due.count ?? 0;
+  // Today's track: one segment per card the Starter will play (it takes up to 10).
+  const play = Math.min(due.count ?? 0, 10);
+  $('starter-due').textContent = due.count ?? 0;
+  $('starter-due-label').textContent = !due.count ? 'cards due today. Practice below keeps your streak.' : `${due.count === 1 ? 'card' : 'cards'} on today's track`;
+  document.querySelector('.starter').classList.toggle('is-empty', !due.count);
+  $('starter-track').replaceChildren(...Array.from({ length: play }, () => document.createElement('li')));
   $('style-count').textContent = style.count ?? 0;
 }
 

@@ -4,84 +4,111 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#e8590c">
+  <meta name="theme-color" content="#150f38">
+  <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Hub">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Hub</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="preload" href="fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
+  <!-- Icons: Tabler Icons (MIT), outline. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 10.941c2.333-3.308.167-7.823-1-8.941 0 3.395-2.235 5.299-3.667 6.706C5.903 10.114 5 12.327 5 14.294 5 17.998 8.134 21 12 21s7-3.002 7-6.706c0-1.712-1.232-4.403-2.333-5.588-2.084 3.353-3.257 3.353-4.667 2.235"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3v7h6l-8 11v-7H5l8-11"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><path d="M3.604 7.197l7.138-3.109a.96.96 0 0 1 1.27.527l4.924 11.902a1 1 0 0 1-.514 1.304l-7.137 3.109a.96.96 0 0 1-1.271-.527L3.09 8.5a1 1 0 0 1 .514-1.304zM15 4h1a1 1 0 0 1 1 1v3.5M20 6c.264.112.52.217.768.315a1 1 0 0 1 .53 1.311L19 13"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2M9 12h12l-3-3M18 15l3-3"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 3"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6M11 13l9-9M15 4h5v5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 15l6-6M11 6l.463-.536a5 5 0 0 1 7.071 7.072L18 13M13 18l-.397.534a5.068 5.068 0 0 1-7.127 0 4.972 4.972 0 0 1 0-7.071L6 11"/></symbol>
+  </svg>
+
   <main id="login" class="login" hidden>
-    <form id="login-form" class="card">
-      <h1>Hub</h1>
+    <form id="login-form" class="panel-box login-card">
+      <h1 class="wordmark">Hub</h1>
+      <p class="muted">Log in to play today's track.</p>
       <label>Email <input name="email" type="email" autocomplete="username" required></label>
       <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-      <button type="submit">Log in</button>
+      <button type="submit" class="btn btn-go">Log in</button>
       <p id="login-error" class="error" role="alert"></p>
     </form>
   </main>
 
   <div id="app" hidden>
-    <header class="top">
-      <strong class="brand">Hub</strong>
+    <header class="hud">
+      <strong class="wordmark">Hub</strong>
+      <div class="stats" aria-live="polite">
+        <span class="stat stat-coral" title="Day streak"><svg class="ico"><use href="#i-flame"/></svg><b id="streak">0</b><small>day streak</small></span>
+        <span class="stat stat-gold" title="XP"><svg class="ico"><use href="#i-bolt"/></svg><b id="xp">0</b><small>XP</small></span>
+        <span class="stat stat-mint" title="Cards due"><svg class="ico"><use href="#i-cards"/></svg><b id="due">0</b><small>due</small></span>
+      </div>
+      <button id="logout" class="btn-icon" aria-label="Log out" title="Log out"><svg class="ico"><use href="#i-logout"/></svg></button>
       <nav class="tabs" aria-label="Sections">
         <a href="#learn" data-tab="learn">Learn</a>
         <a href="#style" data-tab="style">Style</a>
       </nav>
-      <div class="stats" aria-live="polite">
-        <span title="Day streak">🔥 <b id="streak">0</b></span>
-        <span title="XP">⭐ <b id="xp">0</b></span>
-        <span title="Cards due">📚 <b id="due">0</b></span>
-      </div>
-      <button id="logout" class="ghost">Log out</button>
     </header>
 
-    <section id="tab-learn" class="panel" hidden>
+    <section id="tab-learn" class="page" hidden>
       <p id="setup-error" class="notice" role="alert" hidden></p>
-      <div id="learn-home" class="stack">
-        <div class="card hero">
-          <h2>Daily Starter</h2>
-          <p>Today's due cards, up to 10, topics mixed. Think of each answer before the options show. Missed ones come back until you get them right, and that finishes the day.</p>
-          <button id="start-starter">Start</button>
+      <div id="learn-home" class="home">
+        <div class="col">
+          <section class="starter" aria-labelledby="starter-title">
+            <h2 id="starter-title" class="display">Daily Starter</h2>
+            <p class="starter-count"><b id="starter-due" class="display">0</b> <span id="starter-due-label">cards on today's track</span></p>
+            <ol id="starter-track" class="track" aria-hidden="true"></ol>
+            <p>Up to 10 due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
+            <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
+          </section>
+
+          <section class="panel-box" aria-labelledby="practice-title">
+            <h2 id="practice-title">Practice</h2>
+            <p class="muted">Optional, any time. Gives XP but never changes when a card comes back.</p>
+            <div class="games">
+              <button data-game="weak" class="game lane-coral"><span class="key">W</span><span><b>Weak spots</b><small>Cards you keep missing</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+              <button data-game="match" class="game lane-gold"><span class="key">M</span><span><b>Match pairs</b><small>6 pairs against the clock</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+              <button data-game="blank" class="game lane-mint"><span class="key">F</span><span><b>Fill the blank</b><small>Type 5 answers</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+              <button data-game="speed" class="game lane-blue"><span class="key">S</span><span><b>Speed round</b><small>60 seconds, keep the combo</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+            </div>
+          </section>
         </div>
-        <div class="card hero">
-          <h2>Practice</h2>
-          <p class="muted">Optional, any time. Weak spots drills the cards you keep missing. Practice gives XP but doesn't change when a card comes back.</p>
-          <div class="row">
-            <button data-game="weak">Weak spots</button>
-            <button data-game="match">Match pairs</button>
-            <button data-game="blank">Fill the blank</button>
-            <button data-game="speed">Speed round</button>
-          </div>
-        </div>
-        <div class="card hero">
-          <h2>Add a link</h2>
-          <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes 5 review cards and an interactive lesson.</p>
-          <form id="link-form" class="blank">
-            <input name="url" type="url" inputmode="url" required placeholder="https://…" aria-label="Link to learn from" autocomplete="off">
-            <button type="submit">Add</button>
-          </form>
-          <p id="link-error" class="error" role="alert"></p>
-          <ul id="links" class="list" aria-live="polite"></ul>
-          <p id="links-empty" class="muted" hidden>No links yet.</p>
-        </div>
-        <div id="skills-card" class="card hero" hidden>
-          <h2>Skills</h2>
-          <ul id="skills" class="list"></ul>
+
+        <div class="col">
+          <section class="panel-box" aria-labelledby="link-title">
+            <h2 id="link-title">Add a link</h2>
+            <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes 5 review cards and an interactive lesson.</p>
+            <form id="link-form" class="inline-form">
+              <span class="field"><svg class="ico"><use href="#i-link"/></svg><input name="url" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=…" aria-label="Link to learn from" autocomplete="off"></span>
+              <button type="submit" class="btn btn-go">Add</button>
+            </form>
+            <p id="link-error" class="error" role="alert"></p>
+            <ul id="links" class="links" aria-live="polite"></ul>
+            <p id="links-empty" class="empty" hidden>No links yet. Paste one above, or share a video to Hub from your phone.</p>
+          </section>
+
+          <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
+            <h2 id="skills-title">Skills</h2>
+            <ul id="skills" class="skills"></ul>
+          </section>
         </div>
       </div>
-      <div id="learn-stage" class="card stage" aria-live="polite" hidden></div>
+      <div id="learn-stage" class="stage" aria-live="polite" hidden></div>
     </section>
 
-    <section id="tab-style" class="panel" hidden>
-      <div class="card hero">
+    <section id="tab-style" class="page" hidden>
+      <div class="panel-box style-board">
         <h2>Style board</h2>
-        <p><b id="style-count">0</b> images saved.</p>
+        <p class="style-count"><b id="style-count" class="display">0</b> images saved</p>
         <p class="muted">Uploading and the board arrive in phase 3.</p>
       </div>
     </section>
