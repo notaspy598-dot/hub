@@ -7,10 +7,10 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
-// Settings come from env vars, or from keys.json next to this file (what scripts/setup-reminders.sh writes).
-let file: Record<string, string> = {};
-try { file = JSON.parse(await Deno.readTextFile(new URL('./keys.json', import.meta.url))); } catch { /* env vars only */ }
-const env = (k: string) => Deno.env.get(k) || file[k] || '';
+// Settings come from env vars, or from this line, which scripts/setup-reminders.sh fills in on the server only
+// (the runtime compiles functions elsewhere, so a keys file next to this one can't be read at run time).
+const KEYS: Record<string, string> = {};
+const env = (k: string) => Deno.env.get(k) || KEYS[k] || '';
 webpush.setVapidDetails(env('VAPID_SUBJECT'), env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
 
 // Kind, short, rotated by day so the same words don't repeat. No guilt trips, no streak threats.

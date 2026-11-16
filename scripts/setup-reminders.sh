@@ -65,9 +65,14 @@ say "3/5  Installing the remind function"
 [ -n "$SECRET" ] || SECRET=$(openssl rand -hex 32) # an earlier run's secret is kept, so the n8n call keeps working
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/remind"
-cp index.ts "$TMP/remind/index.ts"
-printf '{"VAPID_PUBLIC_KEY":"%s","VAPID_PRIVATE_KEY":"%s","VAPID_SUBJECT":"mailto:%s","REMIND_SECRET":"%s"}\n' "$PUB" "$PRIV" "$MAIL" "$SECRET" > "$TMP/remind/keys.json"
-chmod 644 "$TMP/remind/keys.json" # the container must read it; it never leaves this server
+JSON=$(printf '{"VAPID_PUBLIC_KEY":"%s","VAPID_PRIVATE_KEY":"%s","VAPID_SUBJECT":"mailto:%s","REMIND_SECRET":"%s"}' "$PUB" "$PRIV" "$MAIL" "$SECRET")
+# keys.json is only for re-runs of this script; the function gets its keys written into its KEYS line.
+printf '%s\n' "$JSON" > "$TMP/remind/keys.json"
+LINE='const KEYS: Record<string, string> = {};'
+SRC=$(cat index.ts)
+[[ $SRC == *"$LINE"* ]] || fail "index.ts doesn't have its KEYS line. Download it again with the other files."
+printf '%s\n' "${SRC/"$LINE"/"const KEYS: Record<string, string> = $JSON;"}" > "$TMP/remind/index.ts"
+chmod 644 "$TMP/remind/"* # the container must read them; they never leave this server
 if [ -n "$FN_DIR" ]; then
   mkdir -p "$FN_DIR/remind" && cp "$TMP/remind/"* "$FN_DIR/remind/"
   echo "Saved in $FN_DIR/remind"
