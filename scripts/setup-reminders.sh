@@ -84,11 +84,13 @@ docker restart "$FN" >/dev/null
 say "5/5  Testing (the first run downloads a library, so this can take a minute)"
 envof() { docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" | sed -n "s/^$2=//p" | head -n1; }
 ANON=$(envof "$FN" SUPABASE_ANON_KEY)
-URL=$( [ -n "$AUTH" ] && envof "$AUTH" API_EXTERNAL_URL || true )
+# The public address (what n8n calls). API_EXTERNAL_URL can be Docker-internal (http://supabase-kong:8000), so it's the fallback.
+URL=$(envof "$FN" SUPABASE_PUBLIC_URL)
+[ -n "$URL" ] || URL=$( [ -n "$AUTH" ] && envof "$AUTH" API_EXTERNAL_URL || true )
 [ -n "$ANON" ] && [ -n "$URL" ] || fail "Installed, but couldn't work out the Supabase URL to test it. Test it from README step 4 instead."
 OUT=""
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  OUT=$(curl -s -m 60 -X POST "${URL%/}/functions/v1/remind" -H "Authorization: Bearer $ANON" -H "x-remind-secret: $SECRET" || true)
+  OUT=$(curl -sS -m 60 -X POST "${URL%/}/functions/v1/remind" -H "Authorization: Bearer $ANON" -H "x-remind-secret: $SECRET" 2>&1 || true)
   case "$OUT" in *'"sent"'*) break ;; esac
   sleep 5
 done
