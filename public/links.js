@@ -2,6 +2,7 @@
 // The list shows each link's progress and, per skill, how much you've mastered (what the bot's /stats showed).
 const $ = (id) => document.getElementById(id);
 const BUSY = ['queued', 'reading', 'generating'];
+const opened = new Set(); // Key ideas you've expanded stay open when the list refreshes.
 let sb, webhook, onCards, timer;
 
 function el(tag, props = {}, ...kids) {
@@ -16,16 +17,24 @@ const ping = (id) => webhook && fetch(`${webhook}?source_id=${id}`, { method: 'P
 // The workflow gives up on a lesson after 40 minutes; anything still "in progress" after 2 hours got stuck.
 const stuck = (s) => BUSY.includes(s.status) && Date.now() - Date.parse(s.created_at) > 2 * 3600e3;
 
+// The lesson link shows as soon as its first parts exist; n8n keeps the note on how far it's got.
 function status(s, cards) {
-  if (s.status === 'ready' && s.lesson_url) return el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener', textContent: 'Open lesson ↗' });
-  if (stuck(s)) return el('span', { className: 'bad', textContent: cards ? `${cards} cards saved, but the lesson never finished.` : 'This one got stuck. Try adding it again.' });
-  const text = { queued: 'Waiting to start…', reading: 'Reading the content…', generating: `${cards} cards ready · building the lesson…`, failed: s.note || 'Something went wrong.' }[s.status];
-  return el('span', { className: s.status === 'failed' ? 'bad' : 'muted', textContent: text ?? s.note ?? s.status });
+  const lesson = s.lesson_url && el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener', textContent: 'Open lesson ↗' });
+  if (s.status === 'ready' && lesson) return [lesson];
+  let text, bad = s.status === 'failed';
+  if (stuck(s)) { bad = true; text = cards ? `${cards} cards saved, but the lesson never finished.` : 'This one got stuck. Try adding it again.'; }
+  else text = { queued: 'Waiting to start…', reading: 'Reading the content…', generating: lesson ? s.note || 'More parts on the way…' : `${cards} cards ready · building the lesson…`, failed: s.note || 'Something went wrong.' }[s.status] ?? s.note ?? s.status;
+  const msg = el('span', { className: bad ? 'bad' : 'muted', textContent: text });
+  return lesson ? [lesson, ' · ', msg] : [msg];
 }
+
+// A link's key ideas: the short lesson its quiz questions test.
+export const ideas = (list) => el('ul', { className: 'ideas' },
+  ...list.map((k) => el('li', {}, el('b', { textContent: k.point }), ' ', k.explain)));
 
 export async function loadLinks() {
   const [src, cards] = await Promise.all([
-    sb.from('lc_sources').select('id, url, title, skill, status, note, lesson_url, created_at').order('created_at', { ascending: false }).limit(20),
+    sb.from('lc_sources').select('id, url, title, skill, status, note, lesson_url, key_ideas, created_at').order('created_at', { ascending: false }).limit(20),
     sb.from('lc_cards').select('source_id, skill, box, due_at').limit(2000),
   ]);
   if (src.error || cards.error) return;
@@ -37,7 +46,9 @@ export async function loadLinks() {
   }
   $('links').replaceChildren(...src.data.map((s) => el('li', {},
     el('b', { textContent: s.title || s.url }), s.skill ? el('span', { className: 'muted', textContent: ` · ${s.skill}` }) : null,
-    el('br'), status(s, perSource[s.id] || 0))));
+    el('br'), ...status(s, perSource[s.id] || 0),
+    s.key_ideas?.length ? el('details', { open: opened.has(s.id), ontoggle: (e) => opened[e.target.open ? 'add' : 'delete'](s.id) },
+      el('summary', { textContent: 'Key ideas' }), ideas(s.key_ideas)) : null)));
   $('links-empty').hidden = src.data.length > 0;
   $('skills').replaceChildren(...Object.entries(skills).map(([name, k]) =>
     el('li', {}, el('b', { textContent: name }), `: ${k.mastered}/${k.total} mastered, ${k.due} due`)));

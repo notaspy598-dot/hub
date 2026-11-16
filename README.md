@@ -11,6 +11,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/001_hub.sql` | Phase 1 database setup. Safe to run again. |
 | `sql/002_learn.sql` | Phase 2: XP for the Daily Starter and mini-games. Safe to run again. |
 | `sql/003_web.sql` | Works without Telegram (your own learner profile, adding links from the app). Safe to run again. |
+| `sql/004_lessons.sql` | Key ideas per link, shown before its cards are quizzed. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `tests/text.test.mjs` | A self-check for the typo-tolerant answer matching in Fill the blank. |
 
@@ -18,7 +19,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 
 1. **Close sign-ups.** In Coolify, open your Supabase service → Environment Variables → set `DISABLE_SIGNUP` to `true` → Restart. Otherwise anyone who finds the page could create an account and upload images.
 2. **Create your login.** In Supabase Studio → Authentication → Users → Add user → enter an email and password, and tick *Auto Confirm User*.
-3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`) and `sql/003_web.sql` (ends with `Hub web setup ready`).
+3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) and `sql/004_lessons.sql` (ends with `Hub lessons setup ready`).
 4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into cards and a lesson, with no Telegram involved. Open it in n8n and:
    - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides**, and "OpenMAIC access code" on **OpenMAIC Login**.
    - Check the Postgres nodes use the same credential as the Telegram bot's (they're set to "Postgres account").
@@ -54,12 +55,25 @@ It opens full screen with its own icon and stays logged in. It needs a connectio
 
 ## Learn tab
 
-- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, writes 5 review cards and starts an interactive lesson. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The list shows each link's progress; the cards are ready to play within a minute or two, and *Open lesson* appears when the lesson is built (5 to 15 minutes). If something fails, the reason shows under the link.
+- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 6 **key ideas** and 5 review cards that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. *Open lesson* appears as soon as OpenMAIC has built its first parts, with a note on how many are ready, and the rest keeps filling in. If something fails, the reason shows under the link.
 - **Skills:** cards mastered and due per skill (what the bot's `/stats` showed).
 
-- **Daily Starter:** today's due cards, oldest first, up to 10. Your first answer to each card is graded with the same rule as the bot. Missed cards come back until you get them right, but only the first answer changes the schedule. One random mini-game finishes the day: +10 XP and today counts for your streak.
-- **Mini-games:** Match pairs (2 XP a pair), Fill the blank (3 XP each) and Speed round (1 XP per right answer). They use any of your cards and never change when a card comes back.
-- With no cards yet, the Starter goes straight to a game that says there aren't enough cards yet.
+- **Daily Starter:** today's due cards, oldest first, up to 10, shuffled so topics mix. The first time a link's cards come up, you read its key ideas before you're quizzed on them. Each question shows on its own first: think of the answer, tap *I know it* or *Not sure*, then pick from the options. Your first answer to each card is graded with the same rule as the bot. Missed cards come back until you get them right, and a right answer you weren't sure of comes back once more, but only the first answer changes the schedule. Finishing the cards finishes the day: +10 XP and today counts for your streak. Practice afterwards is optional.
+- **Practice:** Weak spots (up to 8 cards you missed last time or that are still in the first boxes, until each is right; 2 XP each), Match pairs (2 XP a pair), Fill the blank (3 XP each) and Speed round (1 XP per right answer). They never change when a card comes back.
+- With no cards due, the Starter offers practice instead, and finishing one counts today for your streak.
+
+Why it works this way (from the learning research, mainly Dunlosky et al. 2013, *Improving Students' Learning With Effective Learning Techniques*):
+
+| What the app does | The finding |
+|---|---|
+| Teaches a link's key ideas once, then quizzes | Practice testing is one of the two most effective study techniques; rereading barely helps, so the ideas are shown once and recalled after that. |
+| Brings cards back after 1, 2, 4, 8, 16, 32 days | Spaced practice beats cramming, and the gap should grow as the card sticks. |
+| Asks you to recall the answer before showing options | Producing an answer from memory strengthens it more than recognising it in a list. |
+| Repeats missed cards until they're right, then spaces them | Successive relearning: retrieve to a right answer every session, across spaced sessions. |
+| Mixes topics in a session | Interleaving helps you tell similar ideas apart. |
+| Asks how sure you are, and flags confident mistakes | Mistakes made with high confidence are the most likely to be corrected after feedback (the hypercorrection effect). Lucky guesses get one more go. |
+| After a miss, asks you to explain the answer in your own words | Self-explanation helps the answer make sense, not just stick. |
+| Weak spots drill | Deliberate practice: spend extra time where you're weakest. |
 
 ## If something's off
 
@@ -78,7 +92,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql
 ```
 
 ```bash

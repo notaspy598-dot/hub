@@ -26,6 +26,7 @@ h1, h2 { margin: 0 0 .5rem; line-height: 1.2; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; }
 button { font: inherit; border: 0; border-radius: 10px; padding: .65rem 1rem; background: var(--accent); color: var(--accent-text); font-weight: 600; cursor: pointer; }
 button.ghost { background: none; color: var(--muted); padding: .4rem .6rem; }
+button.second { background: var(--bg); color: var(--text); border: 1px solid var(--line); }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input { font: inherit; width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); }
 
@@ -71,5 +72,7 @@ button.tile.done { opacity: .35; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .flip { animation: none; } }
 .list { list-style: none; margin: .75rem 0 0; padding: 0; display: grid; gap: .6rem; }
 .list li { overflow-wrap: anywhere; }
-.list a { color: var(--accent); font-weight: 600; }
+.list a, .stage a { color: var(--accent); font-weight: 600; }
+.ideas { margin: .4rem 0 0; padding-left: 1.2rem; display: grid; gap: .5rem; }
+details summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: .3rem; }
 .top { padding-top: max(.6rem, env(safe-area-inset-top)); }

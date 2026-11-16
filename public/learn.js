@@ -1,11 +1,12 @@
-// Learn tab: the Daily Starter and three mini-games.
+// Learn tab: the Daily Starter, Weak spots and three mini-games.
 // Only the Starter's first answer to each card goes through lc_grade_mine (the schedule);
-// repeats and games only give XP through lc_award_mine.
+// repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
 import { closeEnough, shuffle } from './text.js';
+import { ideas } from './links.js';
 
-const COLS = 'id, question, options, answer, explanation';
+const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
 const STARTER_XP = 10;
-const GAMES = { match: ['Match pairs', matchPairs], blank: ['Fill the blank', fillBlank], speed: ['Speed round', speedRound] };
+const GAMES = { weak: ['Weak spots', weakSpots], match: ['Match pairs', matchPairs], blank: ['Fill the blank', fillBlank], speed: ['Speed round', speedRound] };
 const $ = (id) => document.getElementById(id);
 let sb, refresh;
 
@@ -19,6 +20,9 @@ const answerOf = (c) => String(c.options?.[c.answer] ?? '');
 const stage = (...kids) => $('learn-stage').replaceChildren(...kids);
 const back = () => el('button', { textContent: 'Back to Learn', onclick: () => home(true) });
 const notEnough = () => ({ xp: 0, note: 'Not enough cards yet. Add a few links first.' });
+// Optional practice; dayDone counts today for the streak (only when nothing was due).
+const menu = (dayDone) => el('div', { className: 'row' },
+  ...Object.entries(GAMES).map(([key, [name]]) => el('button', { textContent: name, onclick: () => run(() => solo(key, dayDone)) })));
 
 function home(show) {
   $('learn-home').hidden = !show;
@@ -50,39 +54,62 @@ async function gameCards() {
 
 async function starter() {
   const due = must(await sb.from('lc_cards').select(COLS).lte('due_at', new Date().toISOString()).order('due_at').limit(10));
-  const queue = [...due], graded = new Set();
-  while (queue.length) {
-    const card = queue.shift();
-    const choice = await ask(card, `Daily Starter · ${queue.length + 1} to go`);
-    if (!graded.has(card.id)) {
-      graded.add(card.id);
-      must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice }));
-    }
-    if (choice !== card.answer) queue.push(card); // missed cards come back until you get them right
-    await reveal(card, choice);
+  if (!due.length) {
+    stage(el('h2', { textContent: 'No cards due today' }), el('p', { textContent: 'Practice anything below to keep your streak.' }), menu(true), back());
+    return;
   }
-  const key = shuffle(Object.keys(GAMES))[0];
-  const [name, game] = GAMES[key];
-  await pause(due.length ? 'Cards done' : 'No cards due today', `One mini-game to finish the day: ${name}.`, 'Play');
-  const { xp, note } = await game(await gameCards());
-  const res = await award(STARTER_XP + xp, true);
-  stage(el('h2', { textContent: 'Day done 🎉' }), el('p', { textContent: note }),
-    el('p', { textContent: `+${STARTER_XP + xp} XP${res ? ` · 🔥 ${res.new_streak}-day streak` : ''}` }), back());
+  // Learn before you're tested: a link's key ideas come first, the first time its cards come up.
+  const fresh = [...new Set(due.filter((c) => !c.reviews).map((c) => c.source_id))];
+  if (fresh.length) {
+    const sources = must(await sb.from('lc_sources').select('id, title, url, lesson_url, key_ideas').in('id', fresh));
+    for (const s of sources) if (s.key_ideas?.length) await study(s);
+  }
+  const firstRight = await drill(due, 'Daily Starter', async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })));
+  const res = await award(STARTER_XP, true);
+  stage(el('h2', { textContent: 'Day done 🎉' }),
+    el('p', { textContent: `${firstRight} of ${due.length} right first time · +${STARTER_XP} XP${res ? ` · 🔥 ${res.new_streak}-day streak` : ''}` }),
+    el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back());
 }
 
-async function solo(key) {
-  const [name, game] = GAMES[key];
-  const { xp, note } = await game(await gameCards());
-  if (xp) await award(xp, false);
-  stage(el('h2', { textContent: name }), el('p', { textContent: note }), el('p', { textContent: `+${xp} XP` }), back());
-}
-
-function pause(title, text, label) {
+function study(s) {
   return new Promise((resolve) => {
-    const go = el('button', { textContent: label, onclick: resolve });
-    stage(el('h2', { textContent: title }), el('p', { textContent: text }), go);
+    const go = el('button', { textContent: 'Got it, quiz me', onclick: resolve });
+    const link = (href, text) => href && el('a', { href, target: '_blank', rel: 'noopener', textContent: text });
+    stage(el('p', { className: 'muted', textContent: 'New topic · learn it first' }), el('h2', { textContent: s.title || 'Key ideas' }),
+      ideas(s.key_ideas), el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson ↗'), link(s.url, 'Original ↗')), go);
     go.focus();
   });
+}
+
+// Successive relearning: shuffled so topics mix, and every card comes back until you get it right.
+// onFirst runs on a card's first answer only. A right answer you weren't sure of comes back once more.
+async function drill(cards, label, onFirst) {
+  const queue = shuffle(cards), seen = new Set();
+  let firstRight = 0;
+  while (queue.length) {
+    const card = queue.shift();
+    const { choice, sure } = await ask(card, `${label} · ${queue.length + 1} to go`);
+    const right = choice === card.answer, first = !seen.has(card.id);
+    let note = null;
+    if (first) { seen.add(card.id); firstRight += right; await onFirst?.(card, choice); }
+    if (!right) {
+      queue.push(card);
+      if (sure) note = 'You were sure of this one. Confident mistakes are the easiest to fix, so take a good look at why.';
+    } else if (first && !sure) {
+      queue.push(card);
+      note = "Right, but you weren't sure, so it comes back once more.";
+    }
+    await reveal(card, choice, note);
+  }
+  return firstRight;
+}
+
+async function solo(key, dayDone = false) {
+  const [name, game] = GAMES[key];
+  const { xp, note } = await game(await gameCards());
+  const res = xp || dayDone ? await award(xp, dayDone) : null;
+  stage(el('h2', { textContent: name }), el('p', { textContent: note }),
+    el('p', { textContent: `+${xp} XP${dayDone && res ? ` · 🔥 ${res.new_streak}-day streak` : ''}` }), back());
 }
 
 function options(card, onPick) {
@@ -90,14 +117,20 @@ function options(card, onPick) {
     ...card.options.map((o, i) => el('button', { className: 'option', textContent: o, onclick: () => onPick(i) })));
 }
 
+// Recall first: you try to answer from memory before the options appear, and say how sure you are.
 function ask(card, label) {
   return new Promise((resolve) => {
-    stage(el('p', { className: 'muted', textContent: label }), el('h2', { textContent: card.question }), options(card, resolve));
+    const head = () => [el('p', { className: 'muted', textContent: label }), el('h2', { textContent: card.question })];
+    const show = (sure) => stage(...head(), options(card, (choice) => resolve({ choice, sure })));
+    const know = el('button', { textContent: 'I know it', onclick: () => show(true) });
+    stage(...head(), el('p', { className: 'muted', textContent: 'Think of the answer first, then:' }),
+      el('div', { className: 'row' }, know, el('button', { className: 'second', textContent: 'Not sure', onclick: () => show(false) })));
+    know.focus();
   });
 }
 
 // The card flips to show the right answer and why.
-function reveal(card, choice) {
+function reveal(card, choice, note) {
   const right = choice === card.answer;
   return new Promise((resolve) => {
     const next = el('button', { textContent: 'Next', onclick: resolve });
@@ -106,6 +139,8 @@ function reveal(card, choice) {
       el('h2', { textContent: card.question }),
       el('p', {}, 'Answer: ', el('b', { textContent: answerOf(card) })),
       card.explanation ? el('p', { className: 'muted', textContent: card.explanation }) : null,
+      right ? null : el('p', { textContent: 'Before you go on: say in your own words why this is the answer.' }),
+      note ? el('p', { className: 'muted', textContent: note }) : null,
       next));
     next.focus();
   });
@@ -146,6 +181,15 @@ function matchPairs(cards) {
         el('div', { className: 'col' }, ...set.map((c) => tile(c.question, c.id, 'q'))),
         el('div', { className: 'col' }, ...shuffle(set).map((c) => tile(answerOf(c), c.id, 'a')))));
   });
+}
+
+// Weak spots: up to 8 cards you missed last time or that are still in the first boxes,
+// until each one is right. 2 XP each. Never changes when a card comes back.
+async function weakSpots(cards) {
+  const set = cards.filter((c) => c.reviews > 0 && (c.last_result === false || c.box <= 1)).sort((a, b) => a.box - b.box).slice(0, 8);
+  if (!set.length) return { xp: 0, note: 'No weak spots right now. Cards you miss in the Starter show up here.' };
+  const firstRight = await drill(set, 'Weak spots');
+  return { xp: set.length * 2, note: `${firstRight} of ${set.length} right first time, and all ${set.length} cleared.` };
 }
 
 // Fill the blank: type the answer to 5 cards, small typos allowed. 3 XP each.
