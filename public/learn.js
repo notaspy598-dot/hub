@@ -3,6 +3,7 @@
 // repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
 import { closeEnough, shuffle, grade } from './text.js';
 import { icon } from './links.js';
+import { play, soundToggle } from './sound.js';
 
 const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
 const STARTER_XP = 10;
@@ -38,6 +39,7 @@ const back = () => btn('Back to Learn', 'btn-light', exit);
 const hud = (...items) => el('div', { className: 'runbar' }, ...items);
 const stage = (...kids) => {
   const head = kids[0]?.classList?.contains('runbar') ? kids.shift() : hud();
+  if (!head.querySelector('.sound')) head.append(soundToggle());
   if (!head.querySelector('.quit')) head.prepend(el('button', { className: 'btn-icon quit', ariaLabel: 'Leave and go back to Learn', title: 'Leave', onclick: exit }, icon('x')));
   $('learn-stage').replaceChildren(head, ...kids.filter((k) => k != null));
   scrollTo({ top: 0 });
@@ -111,6 +113,7 @@ async function starter() {
   const t = await drill(due, async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })));
   const res = await award(STARTER_XP, true);
   const g = grade(t.perfect + t.good, due.length);
+  play('done');
   stage(el('div', { className: 'results' },
     el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` }),
     el('h2', { textContent: 'Day done' }),
@@ -201,6 +204,7 @@ function ask(card, bar) {
 function reveal(card, choice, note, kind, bar, showOptions = true) {
   const right = kind !== 'miss';
   const [word, mark] = JUDGE[kind];
+  play(kind);
   return new Promise((resolve) => {
     const next = btn('Continue', 'btn-dark', resolve);
     stage(bar, el('h2', { textContent: card.question }), showOptions ? options(card, null, { choice }) : null,
@@ -232,7 +236,7 @@ function matchPairs(cards) {
         if (!sel || sel.side === side) { sel?.b.classList.remove('picked'); sel = { b, id, side }; b.classList.add('picked'); return; }
         const other = sel.b, match = sel.id === id;
         sel = null; other.classList.remove('picked');
-        pop.show(match ? 'perfect' : 'miss');
+        pop.show(match ? 'perfect' : 'miss'); play(match ? 'perfect' : 'miss', set.length - left);
         if (!match) {
           misses++;
           for (const x of [b, other]) { x.classList.add('miss'); setTimeout(() => x.classList.remove('miss'), 600); }
@@ -316,6 +320,7 @@ function speedRound(cards) {
         right += ok; combo = ok ? combo + 1 : 0; best = Math.max(best, combo);
         comboEl.textContent = combo;
         pop.show(ok ? 'perfect' : 'miss');
+        play(!ok ? 'miss' : combo % 5 ? 'perfect' : 'combo', combo - 1); // every 5 in a row gets the bigger flourish
         next();
       }));
     };

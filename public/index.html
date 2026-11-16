@@ -28,13 +28,16 @@
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
-    <symbol id="i-clock" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 3"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M15 8a5 5 0 0 1 0 8M17.7 5a9 9 0 0 1 0 14M6 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5A.8.8 0 0 1 11 5v14a.8.8 0 0 1-1.5.5L6 15"/></symbol>
+    <symbol id="i-volume-off" viewBox="0 0 24 24"><path d="M6 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5A.8.8 0 0 1 11 5v14a.8.8 0 0 1-1.5.5L6 15M16 10l4 4m0-4l-4 4"/></symbol>
+    <symbol id="i-clock"viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 3"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6M11 13l9-9M15 4h5v5"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 15l6-6M11 6l.463-.536a5 5 0 0 1 7.071 7.072L18 13M13 18l-.397.534a5.068 5.068 0 0 1-7.127 0 4.972 4.972 0 0 1 0-7.071L6 11"/></symbol>
   </svg>
 
   <main id="login" class="login" hidden>
     <form id="login-form" class="panel-box login-card">
+      <img src="icon.svg" class="logo" alt="" width="64" height="64">
       <h1 class="wordmark">Hub</h1>
       <p class="muted">Log in to play today's track.</p>
       <label>Email <input name="email" type="email" autocomplete="username" required></label>
@@ -90,6 +93,16 @@
             <p id="link-error" class="error" role="alert"></p>
             <ul id="links" class="links" aria-live="polite"></ul>
             <p id="links-empty" class="empty" hidden>No links yet. Paste one above, or share a video to Hub from your phone.</p>
+          </section>
+
+          <section id="remind-card" class="panel-box" aria-labelledby="remind-title" hidden>
+            <h2 id="remind-title">Daily reminder</h2>
+            <p id="remind-text" class="muted"></p>
+            <div id="remind-controls" class="inline-form">
+              <select id="remind-hour" aria-label="Reminder time"></select>
+              <button id="remind-toggle" class="btn btn-go">Turn on</button>
+            </div>
+            <p id="remind-error" class="error" role="alert"></p>
           </section>
 
           <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>

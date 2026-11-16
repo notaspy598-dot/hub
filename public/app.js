@@ -1,7 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID, LINK_WEBHOOK } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID, LINK_WEBHOOK, VAPID_PUBLIC_KEY } from './config.js';
 import { initLearn } from './learn.js';
 import { initLinks, startLinks } from './links.js';
+import { initRemind, loadRemind } from './remind.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -21,6 +22,8 @@ async function loadStats() {
   $('xp').textContent = p?.xp ?? 0;
   $('streak').textContent = p && p.last_active >= yesterday ? p.streak : 0;
   $('due').textContent = due.count ?? 0;
+  // Due cards on the home-screen icon, a quiet reminder (Android; iOS once notifications are allowed).
+  navigator.setAppBadge?.(due.count ?? 0)?.catch(() => {});
   // Today's track: one segment per card the Starter will play (it takes up to 10).
   const play = Math.min(due.count ?? 0, 10);
   $('starter-due').textContent = due.count ?? 0;
@@ -32,7 +35,7 @@ async function loadStats() {
 async function render(session) {
   $('login').hidden = !!session;
   $('app').hidden = !session;
-  if (session) { await loadStats(); startLinks(); }
+  if (session) { await loadStats(); startLinks(); loadRemind(); }
 }
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -45,5 +48,6 @@ $('login-form').addEventListener('submit', async (e) => {
 $('logout').addEventListener('click', () => sb.auth.signOut());
 initLearn(sb, loadStats);
 initLinks(sb, LINK_WEBHOOK, loadStats);
+initRemind(sb, VAPID_PUBLIC_KEY);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sb.auth.onAuthStateChange((_event, session) => { render(session); });

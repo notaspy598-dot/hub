@@ -13,7 +13,11 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/003_web.sql` | Works without Telegram (your own learner profile, adding links from the app). Safe to run again. |
 | `sql/004_lessons.sql` | Key ideas per link, shown before its cards are quizzed. Safe to run again. |
 | `sql/005_lesson_on_demand.sql` | OpenMAIC lessons only when you tap *Build lesson*, at most 10 a day. Safe to run again. |
+| `sql/006_reminders.sql` | Opt-in daily reminders (Web Push): who wants one, at what hour, and who is due one. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
+| `sql/test-006.mjs` | The same kind of self-check for the reminders. |
+| `supabase/functions/remind/` | The Edge Function that sends the reminders, called once an hour. |
+| `scripts/vapid-keys.mjs` | Makes the key pair Web Push needs. |
 | `tests/text.test.mjs` | A self-check for the typo-tolerant answer matching in Fill the blank. |
 
 ## Setup (once)
@@ -38,6 +42,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
    | `SUPABASE_ANON_KEY` | a long `eyJ...` string | `SERVICE_SUPABASEANON_KEY` (or `ANON_KEY`) in your Supabase service's env vars |
    | `LINK_WEBHOOK` | `https://n8n.kingsolomon.tech/webhook/learn-link` | The production URL of the "Link Added in App" node in n8n |
    | `TELEGRAM_ID` | optional, digits only | Only to keep the cards your old Telegram bot chat made. Leave it empty to start fresh. |
+   | `VAPID_PUBLIC_KEY` | optional | Only for daily reminders: the public key from `node scripts/vapid-keys.mjs` (see *Daily reminders*). Empty hides the reminder panel. |
 
    None of these are secret: the anon key is designed to be public, and the database's access rules protect your data. **Never** use the `service_role` key here.
 4. **Domain:** `https://hub.kingsolomon.tech`. Wildcard DNS already covers it.
@@ -53,6 +58,32 @@ To update the page later, push to the repo and redeploy.
 - **Android (Chrome):** open the page, tap ⋮ → *Install app* (or *Add to Home screen*). Once installed, Hub also shows up in the share sheet: share a video or article from Instagram, TikTok, YouTube or the browser to Hub, and the link is filled in for you to tap **Add**.
 
 It opens full screen with its own icon and stays logged in. It needs a connection to load cards.
+
+## Sound, haptics and reminders
+
+- **Sound:** every answer plays a short chime (Perfect, Good and Miss are variations of one sound), Speed round's chime climbs with your combo and every 5 in a row gets a flourish, and finishing the Daily Starter plays a fanfare. They're made in the browser, so there are no sound files. The speaker button next to the X in a run mutes them, and the phone remembers. On iPhone, sound starts after your first tap and follows the ring/silent switch.
+- **Haptics:** Android phones vibrate on each answer. iPhones have no vibration API for web apps, so Hub uses the one thing Safari offers: a light haptic tick (iOS 18 or later), one tick per answer.
+- **App icon badge:** the number of cards due shows on Hub's home-screen icon (Android; on iPhone once reminders are allowed).
+
+### Daily reminders (optional, off for everyone until they turn it on)
+
+One notification a day at the hour each person picks, only if they haven't played that day and cards are due. The wording rotates and never guilt-trips. After 5 reminders in a row with no round after them, a last one says reminders are pausing, and none go out until the person turns them back on.
+
+On iPhone this works only with Hub added to the Home Screen and opened from there (iOS 16.4 or later); in a Safari tab the panel explains that. On Android it works in Chrome, installed or not.
+
+Setup, once:
+
+1. **Keys:** on your computer, in the `hub` folder, run `node scripts/vapid-keys.mjs` and keep both lines somewhere safe. The private key is secret: it only ever goes to the server in step 3.
+2. **Hub app:** in Coolify, add `VAPID_PUBLIC_KEY` (the public key, without the `VAPID_PUBLIC_KEY=` part) to Hub's environment variables and redeploy. The *Daily reminder* panel appears on the Learn page.
+3. **Server (one script):** from the `hub` folder on your computer, copy three files to the server and run the script there. Use the address you SSH into the Coolify server with:
+   ```bash
+   scp scripts/setup-reminders.sh sql/006_reminders.sql supabase/functions/remind/index.ts root@YOUR_SERVER_IP:
+   ssh -t root@YOUR_SERVER_IP "bash setup-reminders.sh"
+   ```
+   It runs the reminders SQL, installs the `remind` Edge Function into Supabase with your keys next to it (in `remind/keys.json`, on the server only), restarts the functions container and tests it. Paste the two keys and an email when it asks. It ends by printing the function's URL and a `REMIND_SECRET`: keep both for step 4. It's safe to run again and keeps the same secret.
+   If you'd rather do it by hand: run `sql/006_reminders.sql` in Studio, put `index.ts` in Supabase's functions folder as `remind/index.ts`, and give the functions container `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:` plus an email) and `REMIND_SECRET` as environment variables or in a `keys.json` next to it.
+4. **Hourly call:** in n8n, make a workflow with a **Schedule Trigger** (every hour, at minute 0) and an **HTTP Request** node: `POST` to the URL from step 3, with headers `Authorization: Bearer <SUPABASE_ANON_KEY>` and `x-remind-secret: <REMIND_SECRET>`. Publish it. Each run answers with how many reminders were sent.
+5. **On each phone:** open Hub (on iPhone, from the Home Screen icon), find *Daily reminder* on the Learn page, pick a time and tap **Turn on**, then **Allow**.
 
 ## Learn tab
 
@@ -94,6 +125,10 @@ npm i @electric-sql/pglite@0.2.17
 
 ```bash
 node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql
+```
+
+```bash
+node sql/test-006.mjs
 ```
 
 ```bash

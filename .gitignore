@@ -3,3 +3,4 @@ package*.json
 .claude/
 .impeccable/review/
 .impeccable/mocks/
+supabase/functions/remind/keys.json
