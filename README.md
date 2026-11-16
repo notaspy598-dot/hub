@@ -82,7 +82,7 @@ Setup, once:
    ```
    It runs the reminders SQL, installs the `remind` Edge Function into Supabase with your keys next to it (in `remind/keys.json`, on the server only), restarts the functions container and tests it. Paste the two keys and an email when it asks. It ends by printing the function's URL and a `REMIND_SECRET`: keep both for step 4. It's safe to run again and keeps the same secret.
    If you'd rather do it by hand: run `sql/006_reminders.sql` in Studio, put `index.ts` in Supabase's functions folder as `remind/index.ts`, and give the functions container `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:` plus an email) and `REMIND_SECRET` as environment variables or in a `keys.json` next to it.
-4. **Hourly call:** in n8n, make a workflow with a **Schedule Trigger** (every hour, at minute 0) and an **HTTP Request** node: `POST` to the URL from step 3, with headers `Authorization: Bearer <SUPABASE_ANON_KEY>` and `x-remind-secret: <REMIND_SECRET>`. Publish it. Each run answers with how many reminders were sent.
+4. **Hourly call:** the n8n workflow **Hub: Daily Reminders** runs every hour and `POST`s to the URL from step 3. Open it, click **Send Due Reminders**, and under *Credential* create a new **Header Auth** credential: *Name* `x-remind-secret`, *Value* the `REMIND_SECRET` from step 3. Save, then **Publish**. Each run answers with how many reminders were sent (`{"sent":0,...}` just means nobody was due that hour).
 5. **On each phone:** open Hub (on iPhone, from the Home Screen icon), find *Daily reminder* on the Learn page, pick a time and tap **Turn on**, then **Allow**.
 
 ## Learn tab
