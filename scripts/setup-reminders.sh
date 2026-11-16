@@ -10,15 +10,23 @@ fail() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 [ -f 006_reminders.sql ] && [ -f index.ts ] || fail "006_reminders.sql and index.ts must be in the same folder as this script."
 command -v docker >/dev/null || fail "Docker isn't here. Run this on the server Coolify uses."
 
-# Coolify keeps each service in /data/coolify/services/<id>/; Supabase's has volumes/functions/main.
-FN_DIR=""
-for d in "${COOLIFY_ROOT:-/data/coolify}"/services/*/volumes/functions; do [ -f "$d/main/index.ts" ] && FN_DIR="$d"; done
-[ -n "$FN_DIR" ] || fail "Couldn't find Supabase's functions folder under /data/coolify/services. Is Supabase on this server?"
-ID=$(basename "$(dirname "$(dirname "$FN_DIR")")")
-box() { docker ps --format '{{.Names}}' | grep -m1 -- "$1.*$ID" || true; }
-FN=$(box edge-functions); DB=$(box supabase-db); AUTH=$(box supabase-auth)
-[ -n "$FN" ] && [ -n "$DB" ] || fail "Found Supabase's files (service $ID) but not its running containers. Start Supabase in Coolify first."
-say "Found Supabase (service $ID)."
+# Find Supabase through Docker rather than guessing paths: the Edge Functions container runs the
+# supabase/edge-runtime image, and the database and auth containers are in the same Compose project.
+FN=$(docker ps --format '{{.Names}} {{.Image}}' | awk '$2 ~ /edge-runtime/ {print $1; exit}')
+if [ -z "$FN" ]; then
+  found=$(docker ps --format '  {{.Names}}  ({{.Image}})' | grep -i supabase || true)
+  [ -n "$found" ] || fail "No Supabase containers are running on this server. Is Supabase hosted on a different server?"
+  fail "Supabase runs here, but not its Edge Functions container. Its running containers are:
+$found
+In Coolify, open the Supabase service, make sure supabase-edge-functions is enabled and running, then run this again."
+fi
+PROJECT=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$FN")
+sibling() { docker ps --filter "label=com.docker.compose.project=$PROJECT" --format '{{.Names}} {{.Image}}' | awk -v img="$1" '$2 ~ img {print $1; exit}'; }
+DB=$(sibling 'supabase/postgres'); AUTH=$(sibling 'gotrue')
+[ -n "$DB" ] || fail "Found $FN but not Supabase's database container next to it."
+# Where the container's /home/deno/functions lives on this server, if it's a mounted folder (it survives redeploys).
+FN_DIR=$(docker inspect -f '{{range .Mounts}}{{println .Destination "|" .Source}}{{end}}' "$FN" | sed -n 's#^/home/deno/functions/* | ##p' | head -n1)
+say "Found Supabase: $FN and $DB."
 
 say "1/5  Database: running 006_reminders.sql"
 docker exec -i "$DB" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q -t < 006_reminders.sql | grep -v '^\s*$' || fail "The SQL failed (see above)."
@@ -33,14 +41,23 @@ PUB=${PUB#VAPID_PUBLIC_KEY=}; PRIV=${PRIV#VAPID_PRIVATE_KEY=}; PUB=${PUB//[[:spa
 [[ $MAIL == ?*@?*.?* && $MAIL != *[[:space:]\"\\]* ]] || fail "That email doesn't look right."
 
 say "3/5  Installing the remind function"
-KEYS="$FN_DIR/remind/keys.json"
-SECRET=""
-[ -f "$KEYS" ] && SECRET=$(grep -o '"REMIND_SECRET":"[^"]*"' "$KEYS" | cut -d'"' -f4 || true) # keep it on re-runs, so n8n keeps working
+# Keep the secret on re-runs, so the n8n call keeps working.
+SECRET=$(docker exec "$FN" cat /home/deno/functions/remind/keys.json 2>/dev/null | grep -o '"REMIND_SECRET":"[^"]*"' | cut -d'"' -f4 || true)
 [ -n "$SECRET" ] || SECRET=$(openssl rand -hex 32)
-mkdir -p "$FN_DIR/remind"
-cp index.ts "$FN_DIR/remind/index.ts"
-printf '{"VAPID_PUBLIC_KEY":"%s","VAPID_PRIVATE_KEY":"%s","VAPID_SUBJECT":"mailto:%s","REMIND_SECRET":"%s"}\n' "$PUB" "$PRIV" "$MAIL" "$SECRET" > "$KEYS"
-chmod 644 "$KEYS" # the container must read it; /data/coolify is root-only on the host
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/remind"
+cp index.ts "$TMP/remind/index.ts"
+printf '{"VAPID_PUBLIC_KEY":"%s","VAPID_PRIVATE_KEY":"%s","VAPID_SUBJECT":"mailto:%s","REMIND_SECRET":"%s"}\n' "$PUB" "$PRIV" "$MAIL" "$SECRET" > "$TMP/remind/keys.json"
+chmod 644 "$TMP/remind/keys.json" # the container must read it; it never leaves this server
+if [ -n "$FN_DIR" ]; then
+  mkdir -p "$FN_DIR/remind" && cp "$TMP/remind/"* "$FN_DIR/remind/"
+  echo "Saved in $FN_DIR/remind"
+else
+  # No mounted folder: copy straight into the container. A Supabase redeploy in Coolify removes it again.
+  docker cp "$TMP/remind" "$FN:/home/deno/functions/" >/dev/null
+  NOTE="If you ever redeploy Supabase in Coolify, run this script again: the function lives inside its container."
+  echo "Copied into $FN"
+fi
 
 say "4/5  Restarting $FN"
 docker restart "$FN" >/dev/null
@@ -61,6 +78,7 @@ case "$OUT" in
   *) fail "The function didn't answer as expected. Its reply was: ${OUT:-nothing}. Check: docker logs $FN --tail 50" ;;
 esac
 
+[ -n "${NOTE:-}" ] && say "$NOTE"
 say "Done. Copy these two lines for the last step (the hourly call in n8n):"
 echo "URL:           ${URL%/}/functions/v1/remind"
 echo "REMIND_SECRET: $SECRET"
