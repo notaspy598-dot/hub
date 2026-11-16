@@ -53,13 +53,9 @@
         <span class="stat stat-mint" title="Cards due"><svg class="ico"><use href="#i-cards"/></svg><b id="due">0</b><small>due</small></span>
       </div>
       <button id="logout" class="btn-icon" aria-label="Log out" title="Log out"><svg class="ico"><use href="#i-logout"/></svg></button>
-      <nav class="tabs" aria-label="Sections">
-        <a href="#learn" data-tab="learn">Learn</a>
-        <a href="#style" data-tab="style">Style</a>
-      </nav>
     </header>
 
-    <section id="tab-learn" class="page" hidden>
+    <section id="tab-learn" class="page">
       <p id="setup-error" class="notice" role="alert" hidden></p>
       <div id="learn-home" class="home">
         <div class="col">
@@ -86,7 +82,7 @@
         <div class="col">
           <section class="panel-box" aria-labelledby="link-title">
             <h2 id="link-title">Add a link</h2>
-            <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes 5 review cards and an interactive lesson.</p>
+            <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes key ideas and 5 to 15 review cards, more for denser topics. Tap <b>Build lesson</b> on it when you want a deeper interactive lesson.</p>
             <form id="link-form" class="inline-form">
               <span class="field"><svg class="ico"><use href="#i-link"/></svg><input name="url" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=…" aria-label="Link to learn from" autocomplete="off"></span>
               <button type="submit" class="btn btn-go">Add</button>
@@ -103,14 +99,6 @@
         </div>
       </div>
       <div id="learn-stage" class="stage" aria-live="polite" hidden></div>
-    </section>
-
-    <section id="tab-style" class="page" hidden>
-      <div class="panel-box style-board">
-        <h2>Style board</h2>
-        <p class="style-count"><b id="style-count" class="display">0</b> images saved</p>
-        <p class="muted">Uploading and the board arrive in phase 3.</p>
-      </div>
     </section>
   </div>
 </body>

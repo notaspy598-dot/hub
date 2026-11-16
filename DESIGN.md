@@ -108,16 +108,6 @@ components:
     rounded: "{rounded.md}"
     padding: "0.7rem 0.85rem"
     height: "48px"
-  tab:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-2}"
-    rounded: "{rounded.pill}"
-    padding: "0 1.1rem"
-    height: "40px"
-  tab-active:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.ink-dark}"
-    rounded: "{rounded.pill}"
   stat:
     backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
@@ -183,7 +173,7 @@ The world borrows grammar from real rhythm-game results screens and Duolingo's l
 A night-stage palette: four indigo layers and two inks, with four saturated lane colours that are rare on purpose.
 
 ### Primary
-- **Ink** (`ink`): primary actions (the ink button), the active tab pill, focus rings, meter fills, ready pips. Ink, not a lane colour, is the action colour.
+- **Ink** (`ink`): primary actions (the ink button), focus rings, meter fills, ready pips. Ink, not a lane colour, is the action colour.
 
 ### Secondary (the four lanes)
 - **Coral Lane** (`coral`, edge `coral-deep`): the Daily Starter panel, the first answer lane, the Weak spots game, the Miss judgement, the C grade.
@@ -216,7 +206,7 @@ Each lane has a `-deep` partner used only as the solid bottom edge or inset edge
 
 ### Hierarchy
 The ramp is three sizes (label 13px, body 16px, large clamp 24-32px); rank comes from weight, face and case rather than more sizes. Big numerals are the only exception.
-- **Display**: the Starter's due count, the results grade (900, 5rem), the style count (3rem). Numbers only.
+- **Display**: the Starter's due count, the results grade (900, 5rem). Numbers only.
 - **Headline**: the Starter heading and results heading.
 - **Judgement**: PERFECT / GOOD / MISS in the answer sheet; uppercase, oblique 8deg, stamped in. The HUD pop uses the same treatment at label size.
 - **Title**: panel headings (h2) and every button label.
@@ -251,7 +241,7 @@ Depth is tonal, not shadowed: stage, HUD, panel and raised panel step up in ligh
 
 ## Shapes
 
-Soft, chunky rectangles: 14px for buttons, inputs, rows and cells; 20px for panels and the sheet's top corners; 10px for stat chips and small inset wells; pills for tabs. Ranks and the grade sit rotated -4deg like a stamp. Track segments are short rounded bars (3-5px radius); on the phone highway they become tall columns with rounded tops (10px 10px 4px 4px). Borders are always 2px; dashed borders mean empty or done.
+Soft, chunky rectangles: 14px for buttons, inputs, rows and cells; 20px for panels and the sheet's top corners; 10px for stat chips and small inset wells. Ranks and the grade sit rotated -4deg like a stamp. Track segments are short rounded bars (3-5px radius); on the phone highway they become tall columns with rounded tops (10px 10px 4px 4px). Borders are always 2px; dashed borders mean empty or done.
 
 ## Components
 
@@ -279,8 +269,7 @@ Chunky and physical, Duolingo's press-down.
 - **Focus:** border turns ink, no outline.
 
 ### Navigation
-- **Tabs:** pill links, 40px tall, soft ink at rest, ink on hover, active is an ink pill with dark-ink text.
-- **HUD:** sticky, HUD indigo with a 2px line bottom border: wordmark, stat chips, log out, tabs (tabs move inline at 760px).
+- **HUD:** sticky, HUD indigo with a 2px line bottom border: wordmark, stat chips, log out.
 
 ### Run HUD row
 Every run screen has one HUD row, and it starts with a leave (X) icon button. It then carries the segmented progress track (cleared segments fill with their first judgement's lane colour) and a "left" count, or, in timed games, the clock and combo chips plus a pop slot where judgements stamp in.

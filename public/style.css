@@ -54,6 +54,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn-go { --face: var(--ink); --edge: #9d93d6; --text: var(--ink-dark); }
 .btn-dark { --face: var(--ink-dark); --edge: #0a0722; }
 .btn-light { --face: var(--panel-up); --edge: var(--hud); --text: var(--ink); }
+.btn-sm { min-height: 40px; padding: .5rem .9rem; font-size: var(--t-s); box-shadow: 0 3px 0 var(--edge); }
 .btn-ghost { --face: transparent; --edge: transparent; color: var(--ink-2); box-shadow: none; }
 .btn-icon {
   display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 12px;
@@ -92,19 +93,7 @@ input:focus { border-color: var(--ink); outline: none; }
 .stat b { font: 800 var(--t-m)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--ink); }
 .stat small { color: var(--ink-2); font-size: var(--t-s); }
 .stat .ico { color: var(--ink-2); }
-.tabs { grid-column: 1 / -1; display: flex; gap: .25rem; }
-.tabs a {
-  display: inline-flex; align-items: center; min-height: 40px; padding: 0 1.1rem; border-radius: 999px;
-  color: var(--ink-2); text-decoration: none; font-weight: 700;
-}
-.tabs a:hover { color: var(--ink); }
-.tabs a[aria-current="page"] { background: var(--ink); color: var(--ink-dark); }
 @media (max-width: 420px) { .hud .stat small { display: none; } }
-@media (min-width: 760px) {
-  .hud { grid-template-columns: auto auto 1fr auto; }
-  .tabs { grid-column: 2; grid-row: 1; margin-left: 1rem; }
-  .stats { grid-column: 3; }
-}
 
 /* Pages */
 .page { max-width: 1040px; margin: 0 auto; padding: 1.25rem 16px max(3rem, env(safe-area-inset-bottom)); }
@@ -217,9 +206,6 @@ details[open] summary { margin-bottom: .25rem; }
 .skills .meter i { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
 .skills small { color: var(--ink-2); font-size: var(--t-s); }
 
-.style-board { max-width: 560px; }
-.style-count { display: flex; align-items: baseline; gap: .5rem; color: var(--ink-2); }
-.style-count b { font-size: 3rem; line-height: 1; color: var(--ink); }
 
 /* Stage: a run in progress */
 .stage { max-width: 640px; margin: 0 auto; display: grid; gap: 1rem; padding-bottom: 14rem; }

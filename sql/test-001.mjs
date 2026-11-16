@@ -123,6 +123,29 @@ await as(OTHER, async () => {
   await assert.rejects(q("SELECT lc_add_link('https://example.com/c')"), /20 links this hour/);
 });
 
+// 005: a lesson is built only when asked, for your own link once its cards exist (n8n saves the transcript with them).
+const [l1, l2, l3] = (await q("SELECT id FROM lc_sources WHERE url = 'https://example.com/b' ORDER BY id LIMIT 3")).map(r => r.id);
+await db.exec(`UPDATE lc_sources SET status = 'ready', transcript = 't' WHERE id IN (${l1}, ${l2});
+  UPDATE lc_sources SET status = 'failed', transcript = 't', lesson_url = 'https://old/part' WHERE id = ${l3};`);
+await as(ME, async () => {
+  await assert.rejects(q('SELECT lc_request_lesson($1)', [l1]), /already built or on its way/, 'not my link');
+});
+await as(OTHER, async () => {
+  await q('SELECT lc_request_lesson($1)', [l1]);
+  await assert.rejects(q('SELECT lc_request_lesson($1)', [l1]), /already built or on its way/, 'already queued');
+  const queued = (await q("SELECT id FROM lc_sources WHERE status = 'queued' LIMIT 1"))[0].id;
+  await assert.rejects(q('SELECT lc_request_lesson($1)', [queued]), /already built or on its way/, 'no cards yet');
+  await q('SELECT lc_request_lesson($1)', [l3]);
+});
+assert.deepEqual(await q(`SELECT status, lesson_url, lesson_requested_at IS NOT NULL AS asked FROM lc_sources WHERE id IN (${l1}, ${l3}) ORDER BY id`),
+  [{ status: 'lesson_queued', lesson_url: null, asked: true }, { status: 'lesson_queued', lesson_url: null, asked: true }], 'a failed lesson can be retried');
+await db.exec(`UPDATE lc_sources SET status = 'generating', lesson_requested_at = now() - interval '3 hours' WHERE id = ${l1}`);
+await as(OTHER, async () => { await q('SELECT lc_request_lesson($1)', [l1]); }); // stuck: retry allowed
+await db.exec(`UPDATE lc_sources SET lesson_requested_at = now() WHERE url = 'https://example.com/b'`);
+await as(OTHER, async () => {
+  await assert.rejects(q('SELECT lc_request_lesson($1)', [l2]), /10 lessons today/);
+});
+
 await as(OTHER, async () => {
   assert.equal((await q('SELECT id FROM lc_cards')).length, 0, 'other user sees none of my cards');
   assert.equal((await q('SELECT id FROM style_items')).length, 0, 'cannot see my images');
@@ -134,6 +157,7 @@ await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_award_mine(1, true)'), /permission denied/);
 await assert.rejects(q("SELECT lc_add_link('https://example.com')"), /permission denied/);
+await assert.rejects(q('SELECT lc_request_lesson(1)'), /permission denied/);
 await db.exec('RESET ROLE;');
 
 assert.equal((await q("SELECT count(*)::int AS n FROM storage.buckets WHERE id = 'style-images' AND NOT public"))[0].n, 1);

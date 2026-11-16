@@ -1,6 +1,6 @@
 # Hub
 
-A static page with Learn and Style tabs. Supabase holds the login, data and images, and n8n does the AI work. On the server it's one tiny nginx container that uses a few MB of RAM.
+A static learning page. Supabase holds the login and data, and n8n does the AI work. On the server it's one tiny nginx container that uses a few MB of RAM.
 
 It needs no Telegram: you add links in the app, and it installs on your phone's home screen like an app (see *Install on your phone*).
 
@@ -12,6 +12,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/002_learn.sql` | Phase 2: XP for the Daily Starter and mini-games. Safe to run again. |
 | `sql/003_web.sql` | Works without Telegram (your own learner profile, adding links from the app). Safe to run again. |
 | `sql/004_lessons.sql` | Key ideas per link, shown before its cards are quizzed. Safe to run again. |
+| `sql/005_lesson_on_demand.sql` | OpenMAIC lessons only when you tap *Build lesson*, at most 10 a day. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `tests/text.test.mjs` | A self-check for the typo-tolerant answer matching in Fill the blank. |
 
@@ -19,8 +20,8 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 
 1. **Close sign-ups.** In Coolify, open your Supabase service → Environment Variables → set `DISABLE_SIGNUP` to `true` → Restart. Otherwise anyone who finds the page could create an account and upload images.
 2. **Create your login.** In Supabase Studio → Authentication → Users → Add user → enter an email and password, and tick *Auto Confirm User*.
-3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) and `sql/004_lessons.sql` (ends with `Hub lessons setup ready`).
-4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into cards and a lesson, with no Telegram involved. Open it in n8n and:
+3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) and `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`).
+4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into key ideas and cards, and builds a lesson when you ask for one, with no Telegram involved. Open it in n8n and:
    - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides**, and "OpenMAIC access code" on **OpenMAIC Login**.
    - Check the Postgres nodes use the same credential as the Telegram bot's (they're set to "Postgres account").
    - Click **Publish**. Its address is `https://n8n.kingsolomon.tech/webhook/learn-link`.
@@ -55,7 +56,7 @@ It opens full screen with its own icon and stays logged in. It needs a connectio
 
 ## Learn tab
 
-- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 6 **key ideas** and 5 review cards that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. *Open lesson* appears as soon as OpenMAIC has built its first parts, with a note on how many are ready, and the rest keeps filling in. If something fails, the reason shows under the link.
+- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 8 **key ideas** and 5 to 15 review cards (about 2 per idea, so denser topics get more) that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. Lessons are on demand: tap *Build lesson* under a link and OpenMAIC builds a deeper lesson around its key ideas (at most 10 a day, since each one is a paid run). *Open lesson* appears as soon as its first parts are built, with a note on how many are ready, and the rest keeps filling in. If a lesson fails, *Try the lesson again* shows instead. If something fails, the reason shows under the link.
 - **Skills:** cards mastered and due per skill (what the bot's `/stats` showed).
 
 - **Daily Starter:** today's due cards, oldest first, up to 10, shuffled so topics mix. The first time a link's cards come up, you read its key ideas before you're quizzed on them. Each question shows on its own first: think of the answer, tap *I know it* or *Not sure*, then pick from the options. Your first answer to each card is graded with the same rule as the bot. Missed cards come back until you get them right, and a right answer you weren't sure of comes back once more, but only the first answer changes the schedule. Finishing the cards finishes the day: +10 XP and today counts for your streak. Practice afterwards is optional.
@@ -92,7 +93,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql
 ```
 
 ```bash
