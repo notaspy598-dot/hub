@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-shot setup for Hub's daily reminders on a Coolify server running Supabase. Run it ON the server, as root,
-# from a folder that also holds 006_reminders.sql and index.ts (README → Daily reminders shows the two commands).
+# from a folder that also holds 006_reminders.sql, index.ts (the remind function) and router.ts (Supabase's router).
 # It: runs the reminders SQL, installs the "remind" Edge Function, saves the keys next to it, restarts the
 # functions container, tests the function, and prints the secret the hourly n8n call needs. Safe to run again.
 set -euo pipefail
@@ -26,25 +26,43 @@ sibling() { docker ps --filter "label=com.docker.compose.project=$PROJECT" --for
 DB=$(sibling 'supabase/postgres(:|@|$)'); AUTH=$(sibling 'supabase/gotrue(:|@|$)')
 [ -n "$DB" ] || fail "Found $FN but not Supabase's database container next to it."
 # Where the container's /home/deno/functions lives on this server, if it's a mounted folder (it survives redeploys).
-FN_DIR=$(docker inspect -f '{{range .Mounts}}{{println .Destination "|" .Source}}{{end}}' "$FN" | sed -n 's#^/home/deno/functions/* | ##p' | head -n1)
+MOUNTS=$(docker inspect -f '{{range .Mounts}}{{println .Destination "|" .Source}}{{end}}' "$FN")
+FN_DIR=$(echo "$MOUNTS" | sed -n 's#^/home/deno/functions/* | ##p' | head -n1)
 say "Found Supabase: $FN and $DB."
+
+# Supabase's router (main/index.ts) is mounted as a single file. When that file was never written, Docker leaves an
+# empty folder in its place and no function can start ("failed to determine entrypoint"). Put Coolify's router back.
+MAIN_SRC=$(echo "$MOUNTS" | sed -n 's#^/home/deno/functions/main/index.ts | ##p' | head -n1)
+[ -n "$MAIN_SRC" ] || { [ -n "$FN_DIR" ] && MAIN_SRC="$FN_DIR/main/index.ts"; } || true
+if [ -n "$MAIN_SRC" ] && [ -d "$MAIN_SRC" ]; then
+  [ -f router.ts ] || fail "Supabase's function router is missing, and router.ts isn't next to this script to put it back."
+  rmdir "$MAIN_SRC" 2>/dev/null || fail "$MAIN_SRC is a folder with files in it, so I left it alone."
+  cp router.ts "$MAIN_SRC"
+  say "Repaired Supabase's function router (Docker had left an empty folder where it belongs)."
+fi
 
 say "1/5  Database: running 006_reminders.sql"
 docker exec -i "$DB" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q -t < 006_reminders.sql | grep -v '^\s*$' || fail "The SQL failed (see above)."
 
-say "2/5  Keys: paste the two lines from 'node scripts/vapid-keys.mjs' (only the part after the = sign)"
-read -rp "VAPID_PUBLIC_KEY: " PUB
-read -rsp "VAPID_PRIVATE_KEY (hidden while you paste): " PRIV; echo
-read -rp "Your email (push services only use it if something breaks): " MAIL
+# Keys saved by an earlier run are reused, so a re-run asks nothing.
+SAVED=$( { [ -n "$FN_DIR" ] && cat "$FN_DIR/remind/keys.json"; } 2>/dev/null || docker exec "$FN" cat /home/deno/functions/remind/keys.json 2>/dev/null || true)
+saved() { printf '%s' "$SAVED" | grep -o "\"$1\":\"[^\"]*\"" | cut -d'"' -f4 || true; }
+PUB=$(saved VAPID_PUBLIC_KEY); PRIV=$(saved VAPID_PRIVATE_KEY); MAIL=$(saved VAPID_SUBJECT); MAIL=${MAIL#mailto:}; SECRET=$(saved REMIND_SECRET)
+if [ -n "$PUB" ] && [ -n "$PRIV" ] && [ -n "$MAIL" ]; then
+  say "2/5  Keys: using the ones saved last time"
+else
+  say "2/5  Keys: paste the two lines from 'node scripts/vapid-keys.mjs' (only the part after the = sign)"
+  read -rp "VAPID_PUBLIC_KEY: " PUB
+  read -rsp "VAPID_PRIVATE_KEY (hidden while you paste): " PRIV; echo
+  read -rp "Your email (push services only use it if something breaks): " MAIL
+fi
 PUB=${PUB#VAPID_PUBLIC_KEY=}; PRIV=${PRIV#VAPID_PRIVATE_KEY=}; PUB=${PUB//[[:space:]]/}; PRIV=${PRIV//[[:space:]]/}
 [[ $PUB =~ ^[A-Za-z0-9_-]{87}$ ]] || fail "That public key doesn't look right (it should be 87 characters of letters, digits, - and _)."
 [[ $PRIV =~ ^[A-Za-z0-9_-]{43}$ ]] || fail "That private key doesn't look right (it should be 43 characters)."
-[[ $MAIL == ?*@?*.?* && $MAIL != *[[:space:]\"\\]* ]] || fail "That email doesn't look right."
+[[ $MAIL == ?*@?*.?* && $MAIL != *[[:space:]\"\]* ]] || fail "That email doesn't look right."
 
 say "3/5  Installing the remind function"
-# Keep the secret on re-runs, so the n8n call keeps working.
-SECRET=$(docker exec "$FN" cat /home/deno/functions/remind/keys.json 2>/dev/null | grep -o '"REMIND_SECRET":"[^"]*"' | cut -d'"' -f4 || true)
-[ -n "$SECRET" ] || SECRET=$(openssl rand -hex 32)
+[ -n "$SECRET" ] || SECRET=$(openssl rand -hex 32) # an earlier run's secret is kept, so the n8n call keeps working
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/remind"
 cp index.ts "$TMP/remind/index.ts"
