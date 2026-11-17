@@ -16,11 +16,12 @@ Turn saved links (YouTube, TikTok, Instagram, Facebook videos, Instagram carouse
 Learning from your own saved feed: every card comes from a link the person chose, the key ideas are taught before the quiz, recall comes before the options appear, and missed cards come back until they are right.
 
 ## Operating Context
-Static PWA (`public/`) served by nginx; Supabase for login, data and storage; n8n turns links into key ideas and cards; OpenMAIC builds a full lesson only when you tap Build lesson. Android share sheet can send a link straight into the Add form. Works offline only for the shell; data needs a connection.
+Static PWA (`public/`) served by nginx; Supabase for login, data and storage; n8n turns links into key ideas and cards; OpenMAIC builds a full lesson only when you tap Build lesson. Android share sheet can send a link straight into the Add form. Works offline for the shell and today's Daily Starter (saved on the phone, synced when back online); everything else needs a connection.
 
 ## Capabilities and Constraints
 - Learn: Daily Starter (up to 10 due cards, study key ideas first, "I know it" / "Not sure" before options, flip reveal), practice games (Weak spots, Match pairs, Fill the blank, Speed round), Add a link with live status, Skills mastered/due.
-- Header shows streak, XP and cards due. One page: Learn.
+- Flag a wrong card, archive a link, a daily goal (5, 10 or 20), typed answers for well-known cards, search, share a key idea as an image, a 12-week activity grid, trophies and a starter deck for new people (sql/009).
+- Header shows streak, XP and cards due. One page: Learn, with Today, Progress and History tabs.
 - Plain HTML/CSS/vanilla JS modules, no build step. Keep element ids and JS hooks the scripts depend on.
 
 ## Brand Commitments

@@ -16,6 +16,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/006_reminders.sql` | Opt-in daily reminders (Web Push): who wants one, at what hour, and who is due one. Safe to run again. |
 | `sql/007_streak_freeze.sql` | Streak freezes: a missed day uses one instead of ending the streak (start with 1, earn 1 every 7 days, hold 2). Run it again if you ever re-run 001 or 002. Safe to run again. |
 | `sql/008_engage.sql` | Reasons to come back: the weekly league, challenges, quests and recap, "Did you use it?", Go deeper and playlists. Needs 006 run first. Safe to run again. |
+| `sql/009_complete.sql` | Flag a wrong card, archive a link, the daily goal, the activity grid, trophies and the "How Hub works" starter deck. Run after 008. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `sql/test-006.mjs` | The same kind of self-check for the reminders. |
 | `supabase/functions/remind/` | The Edge Function that sends the reminders, called once an hour. |
@@ -26,7 +27,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 
 1. **Close sign-ups.** In Coolify, open your Supabase service → Environment Variables → set `DISABLE_SIGNUP` to `true` → Restart. Otherwise anyone who finds the page could create an account and upload images.
 2. **Create your login.** In Supabase Studio → Authentication → Users → Add user → enter an email and password, and tick *Auto Confirm User*.
-3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`) `sql/007_streak_freeze.sql` (ends with `Hub streak freeze ready`) and, once the reminders' `sql/006_reminders.sql` is in, `sql/008_engage.sql` (ends with `Hub engage ready`). Until 008 is run, the This week panel and the "Did you use it?" card stay hidden. Run 007 before deploying a page that shows streak freezes, or the header reads 0.
+3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`) `sql/007_streak_freeze.sql` (ends with `Hub streak freeze ready`) and, once the reminders' `sql/006_reminders.sql` is in, `sql/008_engage.sql` (ends with `Hub engage ready`). Until 008 is run, the This week panel and the "Did you use it?" card stay hidden. Run 007 before deploying a page that shows streak freezes, or the header reads 0. Then run `sql/009_complete.sql` (ends with `Hub complete ready`) **before** deploying this version of the page: the header, the link list and the daily goal read its new columns, so without it they come up empty. If you ever re-run 001 or 008, run 009 again after.
 4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into key ideas and cards, and builds a lesson when you ask for one, with no Telegram involved. Open it in n8n and:
    - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides**, and "OpenMAIC access code" on **OpenMAIC Login**.
    - Check the Postgres nodes use the same credential as the Telegram bot's (they're set to "Postgres account").
@@ -69,7 +70,7 @@ To update the page later, push to the repo and redeploy.
 - **iPhone (Safari):** open the page, tap Share → *Add to Home Screen*.
 - **Android (Chrome):** open the page, tap ⋮ → *Install app* (or *Add to Home screen*). Once installed, Hub also shows up in the share sheet: share a video or article from Instagram, TikTok, YouTube or the browser to Hub, and the link is filled in for you to tap **Add**.
 
-It opens full screen with its own icon and stays logged in. It needs a connection to load cards.
+It opens full screen with its own icon and stays logged in. Each time it opens with a connection it keeps today's track on the phone, so the Daily Starter also plays offline (on the subway, say); the answers sync as soon as you're back online, and only then do the XP and streak update. Everything else needs a connection.
 
 ## Sound, haptics and reminders
 
@@ -99,13 +100,17 @@ Setup, once:
 
 ## Learn tab
 
-- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 8 **key ideas** and 5 to 15 review cards (about 2 per idea, so denser topics get more) that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. Lessons are on demand: tap *Build lesson* under a link and OpenMAIC builds a deeper lesson around its key ideas (at most 10 a day, since each one is a paid run). *Open lesson* appears as soon as its first parts are built, with a note on how many are ready, and the rest keeps filling in. If a lesson fails, *Try the lesson again* shows instead. If something fails, the reason shows under the link.
+- **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 8 **key ideas** and 5 to 15 review cards (about 2 per idea, so denser topics get more) that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. Lessons are on demand: tap *Build lesson* under a link and OpenMAIC builds a deeper lesson around its key ideas (at most 10 a day, since each one is a paid run). *Open lesson* appears as soon as its first parts are built, with a note on how many are ready, and the rest keeps filling in. If a lesson fails, *Try the lesson again* shows instead. If something fails, the reason shows under the link. **Archive** under a link takes it off the list and stops its cards coming back (Undo right after, or *Restore* in History, makes them due again).
 - **Skills:** cards mastered and due per skill, and its level: Novice, Learner (25% mastered), Solid (50%) or Expert (75%). The Day done screen says when one levels up. **Go deeper** on a skill asks the AI for a new set of key ideas and cards that build on what you already have there, with no link needed (3 a day).
 - **Playlists:** add a public or unlisted YouTube playlist link and its videos queue up; one joins your links each day you open Hub. Only the first 15 videos are read, and Watch Later can't be imported (YouTube keeps it private).
 - **This week:** your XP, days, cards mastered and ideas used since Monday (UTC), three quests that change every week (claim each for bonus XP), and the league: pick a name to join, and only people with a name are shown, with their XP this week. After a Speed round you can challenge someone in the league to the same cards; they get 60 seconds to beat your score. With reminders on, a recap of your week arrives on Sunday at your reminder hour.
+- **Flag a card:** every answer sheet has *Flag this card as wrong*. A flagged card never comes back and leaves your skills; it stays in the database (`lc_cards.hidden = 'flagged'`) so you can look at what the AI got wrong.
+- **History:** search every key idea and card you have; every word you type must match. *Share as image* on a key idea (there, under a link, or while studying) makes a picture of it for the phone's share sheet, or downloads it on a computer.
+- **Progress:** the last 12 weeks as a grid (darker is more XP that day, UTC days like the streak) and trophies with Bronze, Silver and Gold tiers for best streak, cards mastered, Expert skills, links added, ideas used, challenges won and XP. A new tier gets a celebration the next time you open Progress.
+- **First run:** someone with no links at all gets *How Hub works*, 7 key ideas and 8 cards on how Hub teaches, so day one has a track to play.
 - **Did you use it?** A day after you study a link's key ideas, a card asks about one of them: have you put it to use? Yes is +5 XP and counts toward the "use ideas" quest. One a day.
 
-- **Daily Starter:** today's due cards, oldest first, up to 10, shuffled so topics mix. The first time a link's cards come up, you read its key ideas before you're quizzed on them. Each question shows on its own first: think of the answer, tap *I know it* or *Not sure*, then pick from the options. Your first answer to each card is graded with the same rule as the bot. Missed cards come back until you get them right, and a right answer you weren't sure of comes back once more, but only the first answer changes the schedule. Finishing the cards finishes the day: +10 XP and today counts for your streak. Practice afterwards is optional.
+- **Daily Starter:** today's due cards, oldest first, up to your daily goal (5, 10 or 20, set under Account; 10 to start), shuffled so topics mix. The first time a link's cards come up, you read its key ideas before you're quizzed on them. Each question shows on its own first: think of the answer, tap *I know it* or *Not sure*, then pick from the options. Cards you know well (box 4 and up, with a short answer) ask you to type the answer instead, typos allowed as in Fill the blank. Your first answer to each card is graded with the same rule as the bot. Missed cards come back until you get them right, and a right answer you weren't sure of comes back once more, but only the first answer changes the schedule. Finishing the cards finishes the day: +10 XP and today counts for your streak. Practice afterwards is optional.
 - **Practice:** Weak spots (up to 8 cards you missed last time or that are still in the first boxes, until each is right; 2 XP each), Match pairs (2 XP a pair), Fill the blank (3 XP each) and Speed round (1 XP per right answer). They never change when a card comes back.
 - With no cards due, the Starter offers practice instead, and finishing one counts today for your streak.
 
@@ -115,7 +120,7 @@ Why it works this way (from the learning research, mainly Dunlosky et al. 2013, 
 |---|---|
 | Teaches a link's key ideas once, then quizzes | Practice testing is one of the two most effective study techniques; rereading barely helps, so the ideas are shown once and recalled after that. |
 | Brings cards back after 1, 2, 4, 8, 16, 32 days | Spaced practice beats cramming, and the gap should grow as the card sticks. |
-| Asks you to recall the answer before showing options | Producing an answer from memory strengthens it more than recognising it in a list. |
+| Asks you to recall the answer before showing options, and to type it once you know a card well | Producing an answer from memory strengthens it more than recognising it in a list. |
 | Repeats missed cards until they're right, then spaces them | Successive relearning: retrieve to a right answer every session, across spaced sessions. |
 | Mixes topics in a session | Interleaving helps you tell similar ideas apart. |
 | Asks how sure you are, and flags confident mistakes | Mistakes made with high confidence are the most likely to be corrected after feedback (the hypercorrection effect). Lucky guesses get one more go. |
@@ -139,7 +144,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql sql/009_complete.sql
 ```
 
 ```bash

@@ -313,8 +313,78 @@ if (has008) {
   } else console.log('recap check skipped: no time zone is on Sunday right now');
 }
 
+// 009 (when passed, after 008): flag, archive, daily goal, best streak, activity, lifetime totals, starter deck.
+const has009 = process.argv.some((f) => f.includes('009'));
+if (has009) {
+  await db.exec('UPDATE lc_cards SET due_at = now() WHERE chat_id = 100');
+  await as(ME, async () => {
+    const n = (await q('SELECT id FROM lc_cards')).length;
+    await q('SELECT lc_flag_card(2)');
+    assert.equal((await q('SELECT id FROM lc_cards')).length, n - 1, 'a flagged card leaves the page');
+    assert.equal((await q('SELECT * FROM lc_grade_mine(2, 0)')).length, 0, 'and is never graded');
+    await assert.rejects(q('SELECT lc_flag_card(2)'), /isn't one of yours/, 'once');
+    await assert.rejects(q('SELECT lc_flag_card(3)'), /isn't one of yours/);
+  });
+  assert.equal((await q("SELECT count(*)::int AS n FROM lc_cards WHERE chat_id = 100 AND due_at <= now() AND hidden IS NOT NULL"))[0].n, 0, 'hidden cards are never due');
+
+  // Archive: the link stays readable for History, its cards go, late cards from n8n are hidden too, Restore brings them back.
+  const src = (await q("INSERT INTO lc_sources (chat_id, url, status, title) VALUES (100, 'https://x/arch', 'ready', 'A') RETURNING id"))[0].id;
+  const card = (sql) => q(`INSERT INTO lc_cards (source_id, chat_id, question, options, answer) VALUES ($1, 100, '${sql}', '["a","b"]', 0)`, [src]);
+  await card('qa');
+  const mine = () => as(ME, async () => (await q('SELECT count(*)::int AS n FROM lc_cards WHERE source_id = $1', [src]))[0].n);
+  assert.equal(await mine(), 1);
+  await as(OTHER, async () => { await assert.rejects(q('SELECT lc_archive_link($1)', [src]), /isn't one of yours/); });
+  await as(ME, async () => {
+    await q('SELECT lc_archive_link($1)', [src]);
+    await assert.rejects(q('SELECT lc_archive_link($1)', [src]), /already archived/);
+    assert.ok((await q('SELECT archived_at FROM lc_sources WHERE id = $1', [src]))[0].archived_at, 'History still sees it');
+  });
+  assert.equal(await mine(), 0, 'its cards are hidden');
+  await card('late');
+  assert.equal((await q("SELECT hidden FROM lc_cards WHERE question = 'late'"))[0].hidden, 'archived', 'late cards arrive hidden');
+  await as(OTHER, async () => { await assert.rejects(q('SELECT lc_restore_link($1)', [src]), /isn't archived/); });
+  await as(ME, async () => { await q('SELECT lc_restore_link($1)', [src]); });
+  assert.equal(await mine(), 2, 'Restore brings both back');
+  assert.equal((await q("SELECT hidden FROM lc_cards WHERE id = 2"))[0].hidden, 'flagged', 'a flagged card stays flagged');
+
+  await as(ME, async () => {
+    await q('SELECT lc_set_goal(20)');
+    assert.equal((await q('SELECT daily_goal FROM lc_profile'))[0].daily_goal, 20);
+    await assert.rejects(q('SELECT lc_set_goal(7)'), /5, 10 or 20/);
+  });
+
+  await db.exec('UPDATE lc_profile SET streak = 50 WHERE chat_id = 100; UPDATE lc_profile SET streak = 2 WHERE chat_id = 100;');
+  await as(ME, async () => {
+    assert.equal((await q('SELECT best_streak FROM lc_profile'))[0].best_streak, 50, 'best streak survives a reset');
+    const today = (await q('SELECT * FROM lc_activity()')).at(-1);
+    assert.equal(today.day.toISOString().slice(0, 10), (await q("SELECT ((now() AT TIME ZONE 'UTC')::date)::text AS d"))[0].d);
+    assert.ok(today.xp > 0); assert.equal(today.played, true);
+    const [life] = await q('SELECT * FROM lc_lifetime()');
+    assert.deepEqual([life.best_streak, life.used, life.won], [50, 1, 1], 'Bo scored 12 against 200');
+    assert.ok(life.mastered >= 1 && life.links >= 1 && life.xp > 0);
+  });
+
+  // Starter deck: only for someone with no links at all, once.
+  const NEW = '33333333-3333-3333-3333-333333333333';
+  await db.exec(`INSERT INTO auth.users VALUES ('${NEW}', 'new@x')`);
+  await as(OTHER, async () => { assert.equal((await q('SELECT lc_starter_deck() AS id'))[0].id, null, 'already has links'); });
+  await as(NEW, async () => {
+    await q('SELECT lc_link_me()');
+    const id = (await q('SELECT lc_starter_deck() AS id'))[0].id;
+    assert.ok(id);
+    assert.equal((await q('SELECT lc_starter_deck() AS id'))[0].id, null, 'once');
+    const due = await q('SELECT options, answer FROM lc_cards WHERE due_at <= now()');
+    assert.equal(due.length, 8);
+    assert.ok(due.every((c) => c.options.length === 4 && c.answer >= 0 && c.answer < 4));
+    const [s] = await q('SELECT key_ideas, status, transcript FROM lc_sources');
+    assert.equal(s.status, 'ready'); assert.equal(s.key_ideas.length, 7); assert.ok(s.transcript.includes('Space it out'));
+  });
+}
+
 await db.exec('SET ROLE anon;');
 await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
+if (has009) for (const f of ['lc_flag_card(1)', 'lc_archive_link(1)', 'lc_restore_link(1)', 'lc_set_goal(5)', 'lc_activity()', 'lc_lifetime()', 'lc_starter_deck()'])
+  await assert.rejects(q(`SELECT * FROM ${f}`), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_award_mine(1, true)'), /permission denied/);
 await assert.rejects(q("SELECT lc_add_link('https://example.com')"), /permission denied/);

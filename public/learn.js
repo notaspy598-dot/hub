@@ -3,6 +3,7 @@
 // repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
 import { closeEnough, shuffle, grade, LEVELS } from './text.js';
 import { icon, skillLevels } from './links.js';
+import { shareButton } from './share.js';
 import { play, soundToggle, confetti } from './sound.js';
 
 const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
@@ -98,21 +99,74 @@ async function gameCards() {
   return shuffle(cards.filter((c) => Array.isArray(c.options) && answerOf(c)));
 }
 
+// Daily goal (sql/009): how many due cards the Starter takes. app.js sets it from the profile.
+let goal = 10;
+export const setGoal = (n) => { goal = [5, 10, 20].includes(n) ? n : 10; };
+
+// Offline: today's track is kept on the phone, so the Starter plays without a connection. Its first answers wait
+// in 'hub-pending' and go through lc_grade_mine once back online, then the day is awarded.
+// shortcut: the day counts when it syncs, so a round played offline late at night and synced after midnight UTC
+// counts for the next day; give lc_grade a day parameter if that ever bites.
+const keep = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* not kept */ } },
+};
+const noNetwork = (e) => !e?.code; // PostgREST and Postgres errors carry a code; a failed fetch doesn't
+export const savedToday = () => keep.get('hub-today');
+const dueNow = () => sb.from('lc_cards').select(COLS).lte('due_at', new Date().toISOString()).order('due_at').limit(goal);
+const studyFor = (due) => {
+  const fresh = [...new Set(due.filter((c) => !c.reviews).map((c) => c.source_id))];
+  return fresh.length ? sb.from('lc_sources').select('id, title, url, lesson_url, key_ideas').in('id', fresh) : { data: [] };
+};
+
+export async function saveToday() {
+  if (keep.get('hub-pending')) return; // a round is waiting to sync: don't hand out its cards again
+  const { data: cards, error } = await dueNow();
+  if (error) return;
+  const { data: sources } = await studyFor(cards);
+  keep.set('hub-today', cards.length ? { cards, sources: sources ?? [] } : null);
+}
+
+// Sends answers given offline. Returns true when something was synced, so the caller can refresh.
+export async function syncOffline() {
+  const p = keep.get('hub-pending');
+  if (!p) return false;
+  while (p.answers.length) {
+    const [card, choice] = p.answers[0];
+    const { error } = await sb.rpc('lc_grade_mine', { p_card: card, p_choice: choice });
+    if (error && noNetwork(error)) return false; // still offline: try again later
+    p.answers.shift(); // graded, or refused (no longer due): either way it's done
+    keep.set('hub-pending', p);
+  }
+  if (p.dayDone) {
+    const { error } = await sb.rpc('lc_award_mine', { p_xp: STARTER_XP, p_day_done: true });
+    if (error && noNetwork(error)) return false;
+  }
+  keep.set('hub-pending', null);
+  return true;
+}
+
 async function starter() {
-  const due = must(await sb.from('lc_cards').select(COLS).lte('due_at', new Date().toISOString()).order('due_at').limit(10));
+  let due, offline = false, sources = null;
+  try { due = must(await dueNow()); } catch (e) {
+    if (!noNetwork(e) || !savedToday()?.cards?.length) throw e;
+    ({ cards: due, sources } = savedToday());
+    offline = true;
+  }
   if (!due.length) {
     stage(el('div', { className: 'results' }, el('h2', { textContent: 'No cards due today' }),
       el('p', { className: 'muted', textContent: 'Play any practice game to keep your streak.' }), menu(true), back()));
     return;
   }
   // Learn before you're tested: a link's key ideas come first, the first time its cards come up.
-  const fresh = [...new Set(due.filter((c) => !c.reviews).map((c) => c.source_id))];
-  if (fresh.length) {
-    const sources = must(await sb.from('lc_sources').select('id, title, url, lesson_url, key_ideas').in('id', fresh));
-    for (const s of sources) if (s.key_ideas?.length) { await study(s); sb.rpc('lc_studied', { p_id: s.id }).then(() => {}); } // for "Did you use it?"
+  for (const s of sources ?? must(await studyFor(due))) if (s.key_ideas?.length) {
+    await study(s);
+    if (!offline) sb.rpc('lc_studied', { p_id: s.id }).then(() => {}); // for "Did you use it?"
   }
+  if (offline) return starterOffline(due);
   const levels = await skillLevels();
-  const t = await drill(due, async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })));
+  const t = await drill(due, async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })), true);
+  keep.set('hub-today', null); // played: app.js saves a fresh track next time it opens
   const before = Number($('streak').textContent) || 0; // the header still shows the old streak (0 if it broke)
   const res = await award(STARTER_XP, true);
   const g = grade(t.perfect + t.good, due.length), n = res?.new_streak ?? 0;
@@ -133,6 +187,21 @@ async function starter() {
     el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back()));
   // The session's peak: confetti every day the Starter is cleared, a bigger burst on a milestone or a flawless S.
   confetti(badge, MILESTONES.includes(n) || g === 'S' || ups.length ? 140 : 70);
+}
+
+// The same round with no connection: answers wait on the phone, and the day is awarded when they sync.
+async function starterOffline(due) {
+  const pending = { answers: [], dayDone: false };
+  const t = await drill(due, (card, choice) => { pending.answers.push([card.id, choice]); keep.set('hub-pending', pending); }, true);
+  keep.set('hub-pending', { ...pending, dayDone: true });
+  keep.set('hub-today', null);
+  const g = grade(t.perfect + t.good, due.length);
+  const badge = el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` });
+  play('done');
+  stage(el('div', { className: 'results' }, badge, el('h2', { textContent: 'Day done, offline' }),
+    el('p', { className: 'muted', textContent: "Saved on this phone. Your streak and XP update as soon as you're back online." }),
+    tiles(...tally(t)), back()));
+  confetti(badge, 70); // app.js syncs on the 'online' event
 }
 
 // Streak days that get the big burst. Early days matter most: 2 to 3 is +50%, 200 to 201 is +0.5%.
@@ -156,7 +225,8 @@ function study(s) {
       const go = btn(last ? 'Got it, quiz me' : 'Next', 'btn-go', last ? resolve : () => show(i + 1));
       stage(runbar(n, Array(i + 1).fill('perfect'), `Idea ${i + 1} of ${n}`),
         el('div', { className: 'study' }, el('p', { className: 'prompt', textContent: `New topic: ${s.title || 'key ideas'}` }),
-          el('article', { className: `idea-card lane-${LANES[i % 4]}` }, el('h2', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null),
+          el('article', { className: `idea-card lane-${LANES[i % 4]}` }, el('h2', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null,
+            shareButton(k, s.title, i)),
           el('div', { className: 'row' }, i ? btn('Back', 'btn-light', () => show(i - 1)) : null, go),
           last ? el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson'), link(/^https?:/.test(s.url) && s.url, 'Original')) : null));
       go.focus();
@@ -168,12 +238,16 @@ function study(s) {
 // Successive relearning: shuffled so topics mix, and every card comes back until you get it right.
 // onFirst runs on a card's first answer only. A right answer you weren't sure of comes back once more.
 // Returns the first-answer tally: perfect (right and sure), good (right, unsure), miss.
-async function drill(cards, onFirst) {
+// With typeWellKnown (the Starter), cards you know well (box 4+, short answers) are typed instead of picked:
+// recognising an answer in a list gets easy, producing it keeps mastery honest.
+async function drill(cards, onFirst, typeWellKnown = false) {
   const queue = shuffle(cards), first = new Map(), marks = [], t = { perfect: 0, good: 0, miss: 0 };
   let run = 0; // right answers in a row: each one rings a semitone higher
   while (queue.length) {
-    const card = queue.shift();
-    const { choice, sure } = await ask(card, runbar(cards.length, marks, `${queue.length + 1} left`));
+    const card = queue.shift(), bar = runbar(cards.length, marks, `${queue.length + 1} left`);
+    const recall = typeWellKnown && card.box >= 4 && answerOf(card).length <= 40;
+    const guess = recall ? await typed(card, bar, "You know this one well, so type it.") : null;
+    const { choice, sure } = recall ? { choice: closeEnough(guess, answerOf(card)) ? card.answer : -1, sure: true } : await ask(card, bar);
     const right = choice === card.answer, isFirst = !first.has(card.id);
     const kind = !right ? 'miss' : sure ? 'perfect' : 'good';
     let note = null;
@@ -181,12 +255,16 @@ async function drill(cards, onFirst) {
     if (isFirst) { first.set(card.id, kind); t[kind]++; await onFirst?.(card, choice); }
     if (!right) {
       queue.push(card);
-      if (sure) note = 'You were sure of this one. Confident mistakes are the easiest to fix, so take a good look at why.';
+      if (recall) note = guess ? `You typed “${guess}”.` : null;
+      else if (sure) note = 'You were sure of this one. Confident mistakes are the easiest to fix, so take a good look at why.';
     } else if (isFirst && !sure) {
       queue.push(card);
       note = "Right, but you weren't sure, so it comes back once more.";
     } else marks.push(first.get(card.id));
     await reveal(card, choice, note, kind, runbar(cards.length, marks, `${queue.length} left`), true, run - 1);
+    // Flagged on the answer sheet: it was waiting to come back, so it is cleared instead.
+    const at = card.flagged ? queue.indexOf(card) : -1;
+    if (at >= 0) { queue.splice(at, 1); marks.push(first.get(card.id)); }
   }
   return t;
 }
@@ -282,9 +360,21 @@ function reveal(card, choice, note, kind, bar, showOptions = true, step = 0) {
         card.explanation ? el('p', { textContent: card.explanation }) : null,
         right ? null : el('p', { className: 'note', textContent: 'Before you go on: say in your own words why this is the answer.' }),
         note ? el('p', { className: 'note', textContent: note }) : null,
-        next)));
+        next, flagButton(card))));
     next.focus();
   });
+}
+
+// A wrong or confusing card (the AI writes them): flagging hides it for good and drill() drops it from the run.
+function flagButton(card) {
+  if (card.flagged) return null;
+  const b = el('button', { type: 'button', className: 'btn-link flag', textContent: 'Flag this card as wrong', onclick: async () => {
+    b.disabled = true;
+    const { error } = await sb.rpc('lc_flag_card', { p_card: card.id });
+    b.textContent = error ? `Couldn't flag it (${error.message}).` : "Flagged. It won't come back.";
+    if (error) b.disabled = false; else card.flagged = true;
+  } });
+  return b;
 }
 
 // Match pairs: 6 questions against 6 answers, timed. 2 XP a pair.
@@ -353,12 +443,13 @@ async function fillBlank(cards) {
     best: right, flawless: right === set.length };
 }
 
-function typed(card, bar) {
+function typed(card, bar, hint) {
   return new Promise((resolve) => {
     const input = el('input', { autocomplete: 'off', autocapitalize: 'off', placeholder: 'Type the answer', ariaLabel: 'Your answer' });
     const form = el('form', { className: 'blank', onsubmit: (e) => { e.preventDefault(); resolve(input.value); } },
       input, el('button', { className: 'btn btn-go', textContent: 'Check' }));
-    stage(bar, el('h2', { textContent: card.question }), form);
+    stage(bar, el('h2', { textContent: card.question }), hint ? el('p', { className: 'prompt', textContent: hint }) : null, form,
+      el('button', { type: 'button', className: 'btn-link dunno', textContent: "I don't know", onclick: () => resolve('') }));
     input.focus();
   });
 }

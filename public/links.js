@@ -1,5 +1,6 @@
-import { level, LEVELS } from './text.js';
+import { level, LEVELS, norm } from './text.js';
 import { play } from './sound.js';
+import { shareButton } from './share.js';
 // Add a link → lc_add_link queues it → n8n's "Learning Coach: Web Links" workflow makes the key ideas and cards.
 // The OpenMAIC lesson is on demand: "Build lesson" → lc_request_lesson queues it → the same workflow builds it.
 // The list shows each link's progress and, per skill, how much you've mastered (what the bot's /stats showed).
@@ -58,9 +59,29 @@ function status(s, cards) {
 
 // A link's key ideas: the short lesson its quiz questions test. One swipeable card each, coloured like the Learn tab's.
 const LANES = ['coral', 'gold', 'mint', 'blue'];
-export const ideas = (list) => el('ol', { className: 'ideas', ariaLabel: `${list.length} key ideas, swipe for more` },
+export const ideas = (list, title) => el('ol', { className: 'ideas', ariaLabel: `${list.length} key ideas, swipe for more` },
   ...list.map((k, i) => el('li', { className: `idea-card lane-${LANES[i % 4]}` },
-    el('small', { textContent: `${i + 1} of ${list.length}` }), el('b', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null)));
+    el('small', { textContent: `${i + 1} of ${list.length}` }), el('b', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null,
+    shareButton(k, title, i))));
+
+// Archive: the link leaves Today and its cards stop coming back (sql/009). History keeps it, with Restore.
+async function archive(s, btn) {
+  btn.disabled = true;
+  $('link-error').textContent = '';
+  const { error } = await sb.rpc('lc_archive_link', { p_id: s.id });
+  if (error) { btn.disabled = false; $('link-error').textContent = error.message; return; }
+  const undo = el('button', { type: 'button', className: 'btn-link', textContent: 'Undo', onclick: () => restore(s.id, undo) });
+  $('link-msg').replaceChildren(`Archived “${s.title || s.url}”. Its cards won't come back. `, undo);
+  loadLinks(); onCards();
+}
+async function restore(id, btn) {
+  btn.disabled = true;
+  const { error } = await sb.rpc('lc_restore_link', { p_id: id });
+  if (error) { btn.disabled = false; btn.textContent = `Restore (failed: ${error.message})`; return; }
+  $('link-msg').textContent = 'Restored. Its cards are due again.';
+  btn.replaceWith('Restored.');
+  loadLinks(); onCards();
+}
 
 // Per skill: cards, mastered (box 4+) and due.
 const bySkill = (cards, now = '') => {
@@ -92,7 +113,7 @@ export async function loadLinks() {
   const drip = await sb.rpc('lc_drip');
   if (drip.data) ping(drip.data);
   const [src, cards] = await Promise.all([
-    sb.from('lc_sources').select('id, url, title, skill, platform, status, note, lesson_url, key_ideas, created_at, lesson_requested_at').order('created_at', { ascending: false }).limit(20),
+    sb.from('lc_sources').select('id, url, title, skill, platform, status, note, lesson_url, key_ideas, created_at, lesson_requested_at').is('archived_at', null).order('created_at', { ascending: false }).limit(20),
     sb.from('lc_cards').select('source_id, skill, box, due_at').limit(2000),
   ]);
   if (src.error || cards.error) return;
@@ -105,7 +126,8 @@ export async function loadLinks() {
     el('span', { className: 'title', textContent: s.title || s.url }), s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
     el('span', { className: 'state' }, ...status(s, perSource[s.id] || 0)),
     s.key_ideas?.length ? el('details', { open: opened.has(s.id), ontoggle: (e) => opened[e.target.open ? 'add' : 'delete'](s.id) },
-      el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas)) : null)));
+      el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas, s.title)) : null,
+    el('button', { type: 'button', className: 'btn-link archive', textContent: 'Archive', ariaLabel: `Archive ${s.title || s.url}`, onclick: (e) => archive(s, e.currentTarget) }))));
   $('links-empty').hidden = src.data.length > 0;
   // Ranked by share mastered, most first. Each skill shows its level (Novice to Expert) from that share.
   $('skills').replaceChildren(...Object.entries(skills).sort(([, a], [, b]) => b.mastered / b.total - a.mastered / a.total).map(([name, k]) => {
@@ -125,10 +147,13 @@ export async function loadLinks() {
 
 // History: everything you've added, grouped by the day you added it. Loaded when the tab opens.
 // shortcut: newest 500 only, add paging if anyone gets past that.
+let history = [], cardsForSearch = null;
 export async function loadHistory() {
-  const { data, error } = await sb.from('lc_sources').select('id, url, title, skill, lesson_url, key_ideas, created_at').order('created_at', { ascending: false }).limit(500);
+  const { data, error } = await sb.from('lc_sources').select('id, url, title, skill, lesson_url, key_ideas, created_at, archived_at').order('created_at', { ascending: false }).limit(500);
   $('history-error').textContent = error ? `Couldn't load your history (${error.message}).` : '';
   if (error) return;
+  history = data; cardsForSearch = null; // fresh cards on the next search
+  if ($('search').value) search();
   const days = new Map();
   for (const s of data) {
     const day = new Date(s.created_at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -141,13 +166,45 @@ export async function loadHistory() {
       /^https?:\/\//.test(s.url) ? el('a', { className: 'title', href: s.url, target: '_blank', rel: 'noopener' }, s.title || s.url, icon('external')) : el('span', { className: 'title', textContent: s.title || s.url }),
       s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
       s.lesson_url ? el('span', { className: 'state' }, el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener' }, 'Open lesson', icon('external'))) : null,
-      s.key_ideas?.length ? el('details', {}, el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas)) : null))))));
+      s.archived_at ? el('span', { className: 'state' }, el('span', { className: 'muted', textContent: 'Archived · ' }),
+        el('button', { type: 'button', className: 'btn-link', textContent: 'Restore', ariaLabel: `Restore ${s.title || s.url}`, onclick: (e) => restore(s.id, e.currentTarget) })) : null,
+      s.key_ideas?.length ? el('details', {}, el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas, s.title)) : null))))));
   $('history-empty').hidden = data.length > 0;
+}
+
+// Search: every word must appear (case, accents and punctuation ignored) in a key idea or a card.
+// shortcut: filters in the browser over the newest 500 links and 2000 cards; move it to Postgres full-text if that's ever slow.
+async function search() {
+  const words = norm($('search').value).split(' ').filter(Boolean);
+  $('history-list').hidden = !!words.length;
+  $('search-results').hidden = !words.length;
+  if (!words.length) return;
+  if (!cardsForSearch) {
+    const { data, error } = await sb.from('lc_cards').select('question, options, answer, explanation, source_id').limit(2000);
+    if (error) { $('history-error').textContent = `Couldn't search your cards (${error.message}).`; return; }
+    cardsForSearch = data;
+  }
+  const hit = (...texts) => { const t = norm(texts.join(' ')); return words.every((w) => t.includes(w)); };
+  const titles = new Map(history.map((s) => [s.id, s.title || s.url]));
+  const found = history.flatMap((s) => (Array.isArray(s.key_ideas) ? s.key_ideas : []).filter((k) => hit(k.point, k.explain)).map((k) => ({ k, s }))).slice(0, 30);
+  const cards = cardsForSearch.filter((c) => hit(c.question, c.options?.[c.answer], c.explanation)).slice(0, 30);
+  $('search-results').replaceChildren(...[
+    found.length ? el('h3', { textContent: `Key ideas (${found.length})` }) : null,
+    found.length ? el('ul', { className: 'links' }, ...found.map(({ k, s }) => el('li', {}, el('b', { textContent: k.point }),
+      k.explain ? el('span', { className: 'muted', textContent: k.explain }) : null, el('span', { className: 'skill', textContent: `From ${s.title || s.url}` }),
+      shareButton(k, s.title)))) : null,
+    cards.length ? el('h3', { textContent: `Cards (${cards.length})` }) : null,
+    cards.length ? el('ul', { className: 'links' }, ...cards.map((c) => el('li', {}, el('b', { textContent: c.question }),
+      el('span', {}, 'Answer: ', el('b', { textContent: String(c.options?.[c.answer] ?? '') })),
+      titles.has(c.source_id) ? el('span', { className: 'skill', textContent: `From ${titles.get(c.source_id)}` }) : null))) : null,
+    found.length || cards.length ? null : el('p', { className: 'empty', textContent: 'Nothing matches. Try fewer or different words.' })].filter(Boolean));
 }
 
 export function initLinks(client, hook, changed) {
   sb = client; webhook = hook; onCards = changed;
   if (!webhook) $('link-error').textContent = 'Adding links needs LINK_WEBHOOK set in Coolify.';
+  let typing;
+  $('search').addEventListener('input', () => { clearTimeout(typing); typing = setTimeout(search, 200); });
   // Shared from another app (Android share sheet → manifest share_target): fill in the first link, you tap Add.
   const shared = new URLSearchParams(location.search);
   const found = `${shared.get('url') || ''} ${shared.get('text') || ''}`.match(/https?:\/\/\S+/);
@@ -169,6 +226,8 @@ export function initLinks(client, hook, changed) {
 
 // After login: show the list and restart anything that never reached n8n (offline when added, n8n down, ...).
 export async function startLinks() {
-  const rows = await loadLinks();
+  let rows = await loadLinks();
+  // Someone with no links at all gets the "How Hub works" deck (sql/009), so day one has a track to play.
+  if (rows && !rows.length && (await sb.rpc('lc_starter_deck')).data) { rows = await loadLinks(); onCards(); }
   rows?.filter((s) => ['queued', 'lesson_queued'].includes(s.status) && !stuck(s)).forEach((s) => ping(s.id, s.status === 'lesson_queued'));
 }

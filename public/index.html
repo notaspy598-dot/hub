@@ -75,7 +75,7 @@
               <p class="starter-count"><b id="starter-due" class="display">0</b> <span id="starter-due-label">cards on today's track</span></p>
               <ol id="starter-track" class="track" aria-hidden="true"></ol>
               <p id="streak-note" class="streak-note" role="status" hidden></p>
-              <p>Up to 10 due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
+              <p>Up to <span id="goal-text">10</span> due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
               <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
             </section>
 
@@ -109,6 +109,7 @@
                 <button type="submit" class="btn btn-go">Add</button>
               </form>
               <p id="link-error" class="error" role="alert"></p>
+              <p id="link-msg" class="muted" role="status"></p>
               <ul id="links" class="links" aria-live="polite"></ul>
               <p id="links-empty" class="empty" hidden>No links yet. Paste one above, or share a video to Hub from your phone.</p>
             </section>
@@ -134,10 +135,21 @@
             </section>
           </div>
           <div class="col">
+            <section id="activity-card" class="panel-box" aria-labelledby="activity-title" hidden>
+              <h2 id="activity-title">Last 12 weeks</h2>
+              <p id="activity-sum" class="muted"></p>
+              <ol id="activity" class="activity" role="img"></ol>
+              <p class="activity-key muted" aria-hidden="true">Less <i></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> More</p>
+            </section>
             <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
               <h2 id="skills-title">Skills</h2>
               <ul id="skills" class="skills"></ul>
               <p id="skills-error" class="error" role="alert"></p>
+            </section>
+            <section id="trophies-card" class="panel-box" aria-labelledby="trophies-title" hidden>
+              <h2 id="trophies-title">Trophies</h2>
+              <p id="trophies-sum" class="muted"></p>
+              <ul id="trophies" class="trophies"></ul>
             </section>
           </div>
           <p class="empty progress-empty">Play a few cards and your week, quests and skills show up here.</p>
@@ -145,7 +157,9 @@
 
         <section id="history" class="panel-box" aria-labelledby="history-title" hidden>
           <h2 id="history-title">History</h2>
-          <p class="muted">Everything you've added, newest first.</p>
+          <p class="muted">Everything you've added, newest first. Archived links stay here, with Restore.</p>
+          <input id="search" type="search" placeholder="Search your key ideas and cards" aria-label="Search your key ideas and cards" autocomplete="off">
+          <div id="search-results" class="search-results" aria-live="polite" hidden></div>
           <div id="history-list"></div>
           <p id="history-empty" class="empty" hidden>Nothing yet. Links you add show up here.</p>
           <p id="history-error" class="error" role="alert"></p>
@@ -168,6 +182,17 @@
         <button id="remind-toggle" class="btn btn-go">Turn on</button>
       </div>
       <p id="remind-error" class="error" role="alert"></p>
+    </section>
+
+    <section class="account-part" aria-labelledby="goal-title">
+      <h3 id="goal-title">Daily goal</h3>
+      <p class="muted">How many due cards the Daily Starter takes. The XP and streak are the same either way.</p>
+      <select id="goal" aria-label="Cards a day">
+        <option value="5">5 cards a day: casual</option>
+        <option value="10">10 cards a day: regular</option>
+        <option value="20">20 cards a day: serious</option>
+      </select>
+      <p id="goal-msg" class="error" role="status"></p>
     </section>
 
     <section class="account-part" aria-labelledby="password-title">
