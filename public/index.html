@@ -21,7 +21,8 @@
   <!-- Icons: Tabler Icons (MIT), outline. -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 10.941c2.333-3.308.167-7.823-1-8.941 0 3.395-2.235 5.299-3.667 6.706C5.903 10.114 5 12.327 5 14.294 5 17.998 8.134 21 12 21s7-3.002 7-6.706c0-1.712-1.232-4.403-2.333-5.588-2.084 3.353-3.257 3.353-4.667 2.235"/></symbol>
-    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3v7h6l-8 11v-7H5l8-11"/></symbol>
+    <symbol id="i-snowflake" viewBox="0 0 24 24"><path d="M10 4l2 1l2-1M12 2v6.5l3 1.72M17.928 6.268l.134 2.232l1.866 1.232M20.66 7l-5.629 3.25l.01 3.458M19.928 14.268l-1.866 1.232l-.134 2.232M20.66 17l-5.629-3.25l-2.99 1.738M14 20l-2-1l-2 1M12 22v-6.5l-3-1.72M6.072 17.732l-.134-2.232l-1.866-1.232M3.34 17l5.629-3.25l-.01-3.458M4.072 9.732l1.866-1.232l.134-2.232M3.34 7l5.629 3.25l2.99-1.738"/></symbol>
+    <symbol id="i-bolt"viewBox="0 0 24 24"><path d="M13 3v7h6l-8 11v-7H5l8-11"/></symbol>
     <symbol id="i-cards" viewBox="0 0 24 24"><path d="M3.604 7.197l7.138-3.109a.96.96 0 0 1 1.27.527l4.924 11.902a1 1 0 0 1-.514 1.304l-7.137 3.109a.96.96 0 0 1-1.271-.527L3.09 8.5a1 1 0 0 1 .514-1.304zM15 4h1a1 1 0 0 1 1 1v3.5M20 6c.264.112.52.217.768.315a1 1 0 0 1 .53 1.311L19 13"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2M9 12h12l-3-3M18 15l3-3"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
@@ -51,7 +52,7 @@
     <header class="hud">
       <strong class="wordmark">Hub</strong>
       <div class="stats" aria-live="polite">
-        <span class="stat stat-coral" title="Day streak"><svg class="ico"><use href="#i-flame"/></svg><b id="streak">0</b><small>day streak</small></span>
+        <span class="stat stat-coral" title="Day streak"><svg class="ico"><use href="#i-flame"/></svg><b id="streak">0</b><small>day streak</small><span class="freeze" title="Streak freezes: a missed day uses one instead of ending your streak. Earn one every 7 days, hold up to 2."><svg class="ico"><use href="#i-snowflake"/></svg><b id="freezes">0</b><small>freezes</small></span></span>
         <span class="stat stat-gold" title="XP"><svg class="ico"><use href="#i-bolt"/></svg><b id="xp">0</b><small>XP</small></span>
         <span class="stat stat-mint" title="Cards due"><svg class="ico"><use href="#i-cards"/></svg><b id="due">0</b><small>due</small></span>
       </div>
@@ -66,6 +67,7 @@
             <h2 id="starter-title" class="display">Daily Starter</h2>
             <p class="starter-count"><b id="starter-due" class="display">0</b> <span id="starter-due-label">cards on today's track</span></p>
             <ol id="starter-track" class="track" aria-hidden="true"></ol>
+            <p id="streak-note" class="streak-note" role="status" hidden></p>
             <p>Up to 10 due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
             <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
           </section>

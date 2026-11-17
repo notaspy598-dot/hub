@@ -94,7 +94,11 @@ input:focus { border-color: var(--ink); outline: none; }
 .stat b { font: 800 var(--t-m)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--ink); }
 .stat small { color: var(--ink-2); font-size: var(--t-s); }
 .stat .ico { color: var(--ink-2); }
-@media (max-width: 420px) { .hud .stat small { display: none; } }
+/* Streak freezes ride in the streak pill, after a thin divider. */
+.stat .freeze { display: inline-flex; align-items: center; gap: .25rem; margin-left: .2rem; padding-left: .45rem; border-left: 1px solid var(--line); }
+.stat .freeze .ico { color: var(--blue); }
+/* Phones: no room for freezes in the header; Day done shows them, and the Starter says when a streak is frozen. */
+@media (max-width: 420px) { .hud .stat small, .hud .stat .freeze { display: none; } }
 
 /* Pages */
 .page { max-width: 1040px; margin: 0 auto; padding: 1.25rem 16px max(3rem, env(safe-area-inset-bottom)); }
@@ -143,7 +147,8 @@ input:focus { border-color: var(--ink); outline: none; }
   /* Nothing due: no highway, just a compact panel pointing to practice. */
   .starter.is-empty { min-height: 0; grid-template-rows: none; }
 }
-.starter.is-empty p:not(.starter-count) { display: none; }
+.starter.is-empty p:not(.starter-count, .streak-note) { display: none; }
+.streak-note { font-weight: 700; background: var(--ink-dark); color: var(--ink); border-radius: 10px; padding: .5rem .75rem; }
 
 /* Practice games: a track list. Each game owns one lane colour. */
 .lane-coral { --lane: var(--coral); --lane-deep: var(--coral-deep); }
@@ -314,6 +319,14 @@ details[open] summary { margin-bottom: .25rem; }
 
 /* Speed round */
 .speed { display: grid; gap: .9rem; }
+
+/* Confetti (sound.js): pieces start at the burst point and are moved by the Web Animations API. */
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+.confetti i { position: absolute; left: var(--x); top: var(--y); width: 8px; height: 13px; margin: -6px 0 0 -4px; border-radius: 2px; }
+/* A header number that just went up. */
+@keyframes bump { 40% { scale: 1.35; } }
+.stat b.bump { display: inline-block; animation: bump .5s var(--ease); }
+.streak-up { font: 800 var(--t-m)/1.2 var(--display); color: var(--gold); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

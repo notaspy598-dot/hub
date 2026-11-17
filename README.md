@@ -14,6 +14,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/004_lessons.sql` | Key ideas per link, shown before its cards are quizzed. Safe to run again. |
 | `sql/005_lesson_on_demand.sql` | OpenMAIC lessons only when you tap *Build lesson*, at most 10 a day. Safe to run again. |
 | `sql/006_reminders.sql` | Opt-in daily reminders (Web Push): who wants one, at what hour, and who is due one. Safe to run again. |
+| `sql/007_streak_freeze.sql` | Streak freezes: a missed day uses one instead of ending the streak (start with 1, earn 1 every 7 days, hold 2). Run it again if you ever re-run 001 or 002. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `sql/test-006.mjs` | The same kind of self-check for the reminders. |
 | `supabase/functions/remind/` | The Edge Function that sends the reminders, called once an hour. |
@@ -24,7 +25,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 
 1. **Close sign-ups.** In Coolify, open your Supabase service → Environment Variables → set `DISABLE_SIGNUP` to `true` → Restart. Otherwise anyone who finds the page could create an account and upload images.
 2. **Create your login.** In Supabase Studio → Authentication → Users → Add user → enter an email and password, and tick *Auto Confirm User*.
-3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) and `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`).
+3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`) and `sql/007_streak_freeze.sql` (ends with `Hub streak freeze ready`). Run 007 before deploying a page that shows streak freezes, or the header reads 0.
 4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into key ideas and cards, and builds a lesson when you ask for one, with no Telegram involved. Open it in n8n and:
    - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides**, and "OpenMAIC access code" on **OpenMAIC Login**.
    - Check the Postgres nodes use the same credential as the Telegram bot's (they're set to "Postgres account").
@@ -124,7 +125,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/007_streak_freeze.sql
 ```
 
 ```bash

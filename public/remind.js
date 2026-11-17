@@ -7,7 +7,9 @@ let sb, key, row = null;
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const iosBrowserTab = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches;
 const keyBytes = (k) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-const hourText = (h) => new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: 'numeric' });
+// A 12-hour clock whatever the phone's locale, so 0 reads as midnight (12 AM), never "00". Stored as 0-23.
+const hourText = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}${h === 0 ? ' (midnight)' : h === 12 ? ' (noon)' : ''}`;
+const hourOption = (h) => Object.assign(document.createElement('option'), { value: String(h), textContent: hourText(h) });
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 function show() {
@@ -59,7 +61,14 @@ const act = (fn) => async () => {
 export function initRemind(client, vapidKey) {
   sb = client; key = vapidKey;
   if (!key) return; // not set up on the server yet: the panel stays hidden
-  $('remind-hour').replaceChildren(...Array.from({ length: 24 }, (_, h) => Object.assign(document.createElement('option'), { value: String(h), textContent: hourText(h) })));
+  // The day as a clock, midnight to midnight: the morning half, then the afternoon and evening.
+  const group = (label, from) => {
+    const g = Object.assign(document.createElement('optgroup'), { label });
+    g.append(...Array.from({ length: 12 }, (_, i) => hourOption(from + i)));
+    return g;
+  };
+  $('remind-hour').replaceChildren(
+    group('AM: midnight to noon', 0), group('PM: noon to midnight', 12));
   $('remind-toggle').addEventListener('click', act(toggle));
   $('remind-hour').addEventListener('change', act(async () => { if (row && row.ignored < 5) await save(); }));
 }

@@ -111,16 +111,36 @@ async function starter() {
     for (const s of sources) if (s.key_ideas?.length) await study(s);
   }
   const t = await drill(due, async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })));
+  const before = Number($('streak').textContent) || 0; // the header still shows the old streak (0 if it broke)
   const res = await award(STARTER_XP, true);
-  const g = grade(t.perfect + t.good, due.length);
+  const g = grade(t.perfect + t.good, due.length), n = res?.new_streak ?? 0;
+  // An open loop for tomorrow: cards already waiting by the end of tomorrow (local time).
+  const end = new Date(); end.setDate(end.getDate() + 2); end.setHours(0, 0, 0, 0);
+  const { count: tomorrow } = await sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', end.toISOString());
+  const badge = el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` });
   play('done');
-  stage(el('div', { className: 'results' },
-    el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` }),
+  stage(el('div', { className: 'results' }, badge,
     el('h2', { textContent: 'Day done' }),
+    n > before ? el('p', { className: 'streak-up', textContent: streakLine(n) }) : null,
+    freezeLine(res),
     tiles(...tally(t)),
-    tiles(['XP', `+${STARTER_XP}`, 'ink'], res && ['Streak', days(res.new_streak), 'ink']),
+    tiles(['XP', `+${STARTER_XP}`, 'ink'], res && ['Streak', days(n), 'ink'], res && ['Freezes', `${res.freezes ?? 0}/2`, 'blue']),
+    tomorrow ? el('p', { className: 'muted', textContent: `Tomorrow: ${tomorrow} ${tomorrow === 1 ? 'card' : 'cards'} on your track.` }) : null,
     el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back()));
+  // The session's peak: confetti every day the Starter is cleared, a bigger burst on a milestone or a flawless S.
+  confetti(badge, MILESTONES.includes(n) || g === 'S' ? 140 : 70);
 }
+
+// Streak days that get the big burst. Early days matter most: 2 to 3 is +50%, 200 to 201 is +0.5%.
+const MILESTONES = [3, 7, 14, 30, 50, 100, 150, 200, 250, 300, 365, 500, 730, 1000];
+const streakLine = (n) => n === 1 ? 'Streak started. Come back tomorrow to make it 2.'
+  : MILESTONES.includes(n) ? `${n}-day streak! Milestone reached.` : `Streak extended to ${days(n)}.`;
+// What the streak freezes did today (sql/007): one saved the streak after a missed day, or a 7th day earned one.
+const freezeLine = (res) => {
+  const text = [res?.saved && `A streak freeze saved your streak (${res.freezes} left).`,
+    res?.earned && `You earned a streak freeze: ${res.freezes} of 2.`].filter(Boolean).join(' ');
+  return text ? el('p', { className: 'muted', textContent: text }) : null;
+};
 
 // One key idea per card, so a dense topic reads a bite at a time. Back and Next step through them.
 function study(s) {
@@ -146,12 +166,14 @@ function study(s) {
 // Returns the first-answer tally: perfect (right and sure), good (right, unsure), miss.
 async function drill(cards, onFirst) {
   const queue = shuffle(cards), first = new Map(), marks = [], t = { perfect: 0, good: 0, miss: 0 };
+  let run = 0; // right answers in a row: each one rings a semitone higher
   while (queue.length) {
     const card = queue.shift();
     const { choice, sure } = await ask(card, runbar(cards.length, marks, `${queue.length + 1} left`));
     const right = choice === card.answer, isFirst = !first.has(card.id);
     const kind = !right ? 'miss' : sure ? 'perfect' : 'good';
     let note = null;
+    run = right ? run + 1 : 0;
     if (isFirst) { first.set(card.id, kind); t[kind]++; await onFirst?.(card, choice); }
     if (!right) {
       queue.push(card);
@@ -160,18 +182,26 @@ async function drill(cards, onFirst) {
       queue.push(card);
       note = "Right, but you weren't sure, so it comes back once more.";
     } else marks.push(first.get(card.id));
-    await reveal(card, choice, note, kind, runbar(cards.length, marks, `${queue.length} left`));
+    await reveal(card, choice, note, kind, runbar(cards.length, marks, `${queue.length} left`), true, run - 1);
   }
   return t;
 }
 
 async function solo(key, dayDone = false) {
   const [name, game] = GAMES[key];
-  const { xp, note, stats = [] } = await game(await gameCards());
+  const { xp, note, stats = [], best, flawless } = await game(await gameCards());
   const res = xp || dayDone ? await award(xp, dayDone) : null;
-  stage(el('div', { className: 'results' }, el('h2', { textContent: name }), el('p', { textContent: note }),
+  // Personal best on this device, higher is better. The first score only sets it; beating it is the reward.
+  let prev = null;
+  try { prev = localStorage.getItem(`hub-best-${key}`); if (best != null && (prev == null || best > Number(prev))) localStorage.setItem(`hub-best-${key}`, best); } catch { /* not remembered */ }
+  const record = best != null && prev != null && best > Number(prev);
+  const head = el('h2', { textContent: record ? `${name}: new best!` : name });
+  play(record || flawless ? 'done' : 'clear');
+  stage(el('div', { className: 'results' }, head, el('p', { textContent: note }),
+    dayDone ? freezeLine(res) : null,
     stats.length ? tiles(...stats) : null,
     tiles(['XP', `+${xp}`, 'ink'], dayDone && res && ['Streak', days(res.new_streak), 'ink']), back()));
+  if (record || flawless) confetti(head);
 }
 
 // Answer options sit in lanes A-D. With `marked`, they show the result instead of taking a pick.
@@ -201,10 +231,10 @@ function ask(card, bar) {
 }
 
 // The answer sheet slides up with the judgement stamp.
-function reveal(card, choice, note, kind, bar, showOptions = true) {
+function reveal(card, choice, note, kind, bar, showOptions = true, step = 0) {
   const right = kind !== 'miss';
   const [word, mark] = JUDGE[kind];
-  play(kind);
+  play(kind, step);
   return new Promise((resolve) => {
     const next = btn('Continue', 'btn-dark', resolve);
     stage(bar, el('h2', { textContent: card.question }), showOptions ? options(card, null, { choice }) : null,
@@ -246,7 +276,7 @@ function matchPairs(cards) {
         if (--left) return;
         clearInterval(timer);
         const s = Math.round((Date.now() - start) / 1000);
-        resolve({ xp: set.length * 2, note: `${set.length} pairs in ${s}s.`,
+        resolve({ xp: set.length * 2, note: `${set.length} pairs in ${s}s.`, best: set.length === 6 ? -s : null, // faster wins; only full boards count
           stats: [['Pairs', set.length, 'mint'], ['Time', `${s}s`, 'ink'], ['Miss', misses, 'coral']] });
       };
       return b;
@@ -265,7 +295,7 @@ async function weakSpots(cards) {
   const set = cards.filter((c) => c.reviews > 0 && (c.last_result === false || c.box <= 1)).sort((a, b) => a.box - b.box).slice(0, 8);
   if (!set.length) return { xp: 0, note: 'No weak spots right now. Cards you miss in the Starter show up here.' };
   const t = await drill(set);
-  return { xp: set.length * 2, note: `All ${set.length} cleared.`, stats: tally(t) };
+  return { xp: set.length * 2, note: `All ${set.length} cleared.`, stats: tally(t), flawless: !t.miss };
 }
 
 // Fill the blank: type the answer to 5 cards, small typos allowed. 3 XP each.
@@ -281,7 +311,8 @@ async function fillBlank(cards) {
     await reveal(card, kind === 'perfect' ? card.answer : -1, null, kind, runbar(set.length, marks, `${set.length - i - 1} left`), false);
   }
   const right = marks.filter((k) => k === 'perfect').length;
-  return { xp: right * 3, note: `${right} of ${set.length} right.`, stats: [['Perfect', right, 'mint'], ['Miss', set.length - right, 'coral']] };
+  return { xp: right * 3, note: `${right} of ${set.length} right.`, stats: [['Perfect', right, 'mint'], ['Miss', set.length - right, 'coral']],
+    best: right, flawless: right === set.length };
 }
 
 function typed(card, bar) {
@@ -304,10 +335,11 @@ function speedRound(cards) {
     const clock = el('b', { textContent: '60' }), comboEl = el('b', { textContent: '0' }), pop = popper(), box = el('div', { className: 'speed' });
     const timer = every(() => {
       const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      if (left && left <= 5 && String(left) !== clock.textContent) play('tick'); // the last five seconds count down
       clock.textContent = left;
       if (left) return;
       clearInterval(timer);
-      resolve({ xp: right, note: `${right} of ${total} right in 60 seconds.`,
+      resolve({ xp: right, note: `${right} of ${total} right in 60 seconds.`, best: right,
         stats: [['Perfect', right, 'mint'], ['Miss', total - right, 'coral'], ['Max combo', best, 'ink']] });
     }, 200);
     const next = () => {

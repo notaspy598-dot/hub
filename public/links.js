@@ -1,11 +1,12 @@
 import { grade } from './text.js';
+import { play } from './sound.js';
 // Add a link → lc_add_link queues it → n8n's "Learning Coach: Web Links" workflow makes the key ideas and cards.
 // The OpenMAIC lesson is on demand: "Build lesson" → lc_request_lesson queues it → the same workflow builds it.
 // The list shows each link's progress and, per skill, how much you've mastered (what the bot's /stats showed).
 const $ = (id) => document.getElementById(id);
 const BUSY = ['queued', 'reading', 'lesson_queued', 'generating'];
 const opened = new Set(); // Key ideas you've expanded stay open when the list refreshes.
-let sb, webhook, onCards, timer;
+let sb, webhook, onCards, timer, was = new Map(); // was: each link's status at the last refresh
 
 function el(tag, props = {}, ...kids) {
   const node = Object.assign(document.createElement(tag), props);
@@ -65,6 +66,9 @@ export async function loadLinks() {
     sb.from('lc_cards').select('source_id, skill, box, due_at').limit(2000),
   ]);
   if (src.error || cards.error) return;
+  // A link you were waiting on just turned into cards: the effort you put in pays off, so it gets a chime.
+  if (src.data.some((s) => s.status === 'ready' && BUSY.includes(was.get(s.id)))) play('ready');
+  was = new Map(src.data.map((s) => [s.id, s.status]));
   const perSource = {}, skills = {}, now = new Date().toISOString();
   for (const c of cards.data) {
     perSource[c.source_id] = (perSource[c.source_id] || 0) + 1;

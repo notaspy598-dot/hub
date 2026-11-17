@@ -97,6 +97,30 @@ await as(ME, async () => {
   [a] = await q('SELECT * FROM lc_award_mine(10, true)');
   assert.equal(a.new_streak, 5, 'only once per day');
 });
+
+// 007 (when passed): a missed day uses a freeze instead of resetting; one is earned every 7 days, at most 2.
+if (process.argv.some((f) => f.includes('007'))) {
+  const day = async (sets) => {
+    await db.exec(`UPDATE lc_profile SET ${sets} WHERE chat_id = 100`);
+    return as(ME, async () => (await q('SELECT * FROM lc_award_mine(0, true)'))[0]);
+  };
+  let a = await day('last_active = current_date - 2, streak = 4, freezes = 1');
+  assert.deepEqual([a.new_streak, a.freezes, a.saved, a.earned], [5, 0, true, false], 'one missed day, one freeze: streak kept');
+  a = await day('last_active = current_date - 2, streak = 5, freezes = 0, freeze_used_on = NULL');
+  assert.deepEqual([a.new_streak, a.freezes, a.saved], [1, 0, false], 'no freeze left: back to 1');
+  a = await day('last_active = current_date - 3, streak = 9, freezes = 1');
+  assert.deepEqual([a.new_streak, a.freezes], [1, 1], 'two missed days, one freeze: reset, freeze kept');
+  a = await day('last_active = current_date - 3, streak = 9, freezes = 2');
+  assert.deepEqual([a.new_streak, a.freezes, a.saved], [10, 0, true], 'two missed days, two freezes');
+  a = await day('last_active = current_date - 1, streak = 6, freezes = 1, freeze_earned_on = NULL');
+  assert.deepEqual([a.new_streak, a.freezes, a.earned], [7, 2, true], 'day 7 earns one');
+  a = await day('last_active = current_date - 1, streak = 13, freezes = 2, freeze_earned_on = NULL');
+  assert.deepEqual([a.new_streak, a.freezes, a.earned], [14, 2, false], 'never more than 2');
+  // The bot path shares the rule: grading a due card after a missed day uses the freeze too.
+  await db.exec("UPDATE lc_profile SET last_active = current_date - 2, streak = 3, freezes = 1 WHERE chat_id = 100; UPDATE lc_cards SET due_at = now() WHERE id = 1");
+  assert.equal((await q('SELECT * FROM lc_grade(1, 2, 100)'))[0].new_streak, 4);
+  assert.equal((await q('SELECT freezes FROM lc_profile WHERE chat_id = 100'))[0].freezes, 0);
+}
 await as(OTHER, async () => {
   assert.equal((await q('SELECT * FROM lc_award_mine(10, true)')).length, 0, 'unlinked: nothing to award');
 });
