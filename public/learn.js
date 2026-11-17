@@ -1,9 +1,9 @@
 // Learn tab: the Daily Starter, Weak spots and three mini-games.
 // Only the Starter's first answer to each card goes through lc_grade_mine (the schedule);
 // repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
-import { closeEnough, shuffle, grade } from './text.js';
-import { icon } from './links.js';
-import { play, soundToggle } from './sound.js';
+import { closeEnough, shuffle, grade, LEVELS } from './text.js';
+import { icon, skillLevels } from './links.js';
+import { play, soundToggle, confetti } from './sound.js';
 
 const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
 const STARTER_XP = 10;
@@ -70,11 +70,12 @@ function home(show) {
   if (show) refresh();
 }
 
+// With nothing due, practice from home counts for the streak, same as Start's "No cards due" menu.
+const nothingDue = () => $('learn-home').querySelector('.starter').classList.contains('is-empty');
+
 export function initLearn(client, onChange) {
   sb = client; refresh = onChange;
   $('start-starter').addEventListener('click', () => run(starter));
-  // With nothing due, practice from home counts for the streak, same as Start's "No cards due" menu.
-  const nothingDue = () => $('learn-home').querySelector('.starter').classList.contains('is-empty');
   document.querySelectorAll('[data-game]').forEach((b) => b.addEventListener('click', () => { const dayDone = nothingDue(); run(() => solo(b.dataset.game, dayDone)); }));
   addEventListener('popstate', () => { if (!$('learn-stage').hidden) leave(); });
 }
@@ -108,8 +109,9 @@ async function starter() {
   const fresh = [...new Set(due.filter((c) => !c.reviews).map((c) => c.source_id))];
   if (fresh.length) {
     const sources = must(await sb.from('lc_sources').select('id, title, url, lesson_url, key_ideas').in('id', fresh));
-    for (const s of sources) if (s.key_ideas?.length) await study(s);
+    for (const s of sources) if (s.key_ideas?.length) { await study(s); sb.rpc('lc_studied', { p_id: s.id }).then(() => {}); } // for "Did you use it?"
   }
+  const levels = await skillLevels();
   const t = await drill(due, async (card, choice) => must(await sb.rpc('lc_grade_mine', { p_card: card.id, p_choice: choice })));
   const before = Number($('streak').textContent) || 0; // the header still shows the old streak (0 if it broke)
   const res = await award(STARTER_XP, true);
@@ -117,18 +119,20 @@ async function starter() {
   // An open loop for tomorrow: cards already waiting by the end of tomorrow (local time).
   const end = new Date(); end.setDate(end.getDate() + 2); end.setHours(0, 0, 0, 0);
   const { count: tomorrow } = await sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', end.toISOString());
+  const now = await skillLevels(), ups = Object.keys(now).filter((k) => now[k] > (levels[k] ?? 0));
   const badge = el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` });
   play('done');
   stage(el('div', { className: 'results' }, badge,
     el('h2', { textContent: 'Day done' }),
     n > before ? el('p', { className: 'streak-up', textContent: streakLine(n) }) : null,
     freezeLine(res),
+    ...ups.map((k) => el('p', { className: 'streak-up', textContent: `Level up: ${k} is now ${LEVELS[now[k]]}.` })),
     tiles(...tally(t)),
     tiles(['XP', `+${STARTER_XP}`, 'ink'], res && ['Streak', days(n), 'ink'], res && ['Freezes', `${res.freezes ?? 0}/2`, 'blue']),
     tomorrow ? el('p', { className: 'muted', textContent: `Tomorrow: ${tomorrow} ${tomorrow === 1 ? 'card' : 'cards'} on your track.` }) : null,
     el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back()));
   // The session's peak: confetti every day the Starter is cleared, a bigger burst on a milestone or a flawless S.
-  confetti(badge, MILESTONES.includes(n) || g === 'S' ? 140 : 70);
+  confetti(badge, MILESTONES.includes(n) || g === 'S' || ups.length ? 140 : 70);
 }
 
 // Streak days that get the big burst. Early days matter most: 2 to 3 is +50%, 200 to 201 is +0.5%.
@@ -154,7 +158,7 @@ function study(s) {
         el('div', { className: 'study' }, el('p', { className: 'prompt', textContent: `New topic: ${s.title || 'key ideas'}` }),
           el('article', { className: `idea-card lane-${LANES[i % 4]}` }, el('h2', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null),
           el('div', { className: 'row' }, i ? btn('Back', 'btn-light', () => show(i - 1)) : null, go),
-          last ? el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson'), link(s.url, 'Original')) : null));
+          last ? el('p', { className: 'row' }, link(s.lesson_url, 'Full lesson'), link(/^https?:/.test(s.url) && s.url, 'Original')) : null));
       go.focus();
     };
     show(0);
@@ -189,7 +193,7 @@ async function drill(cards, onFirst) {
 
 async function solo(key, dayDone = false) {
   const [name, game] = GAMES[key];
-  const { xp, note, stats = [], best, flawless } = await game(await gameCards());
+  const { xp, note, stats = [], best, flawless, seen } = await game(await gameCards());
   const res = xp || dayDone ? await award(xp, dayDone) : null;
   // Personal best on this device, higher is better. The first score only sets it; beating it is the reward.
   let prev = null;
@@ -200,9 +204,43 @@ async function solo(key, dayDone = false) {
   stage(el('div', { className: 'results' }, head, el('p', { textContent: note }),
     dayDone ? freezeLine(res) : null,
     stats.length ? tiles(...stats) : null,
-    tiles(['XP', `+${xp}`, 'ink'], dayDone && res && ['Streak', days(res.new_streak), 'ink']), back()));
+    tiles(['XP', `+${xp}`, 'ink'], dayDone && res && ['Streak', days(res.new_streak), 'ink']),
+    seen?.length >= 2 ? await challengeForm(seen, best) : null, back()));
   if (record || flawless) confetti(head);
 }
+
+// After a Speed round: send the cards you just played, and your score, to someone in the league.
+async function challengeForm(seen, score) {
+  const { data: league } = await sb.rpc('lc_league');
+  const me = league?.find((p) => p.me), others = (league ?? []).filter((p) => !p.me);
+  if (!league || !others.length) return null; // no league yet (sql/008 not run, or nobody else joined)
+  if (!me) return el('p', { className: 'muted', textContent: 'Pick a league name on Learn to challenge a friend to these cards.' });
+  const pick = el('select', { ariaLabel: 'Friend to challenge' }, ...others.map((p) => el('option', { value: p.name, textContent: p.name })));
+  const msg = el('p', { className: 'muted', role: 'status' });
+  const send = el('button', { className: 'btn btn-go', textContent: 'Send', onclick: async () => {
+    send.disabled = true;
+    const { error } = await sb.rpc('lc_challenge', { p_to: pick.value, p_cards: seen, p_score: score });
+    msg.textContent = error ? error.message : `Sent. ${pick.value} plays the same cards and tries to beat ${score}.`;
+    if (error) send.disabled = false;
+  } });
+  return el('div', { className: 'challenge-send' }, el('b', { textContent: 'Challenge a friend' }), el('div', { className: 'inline-form' }, pick, send), msg);
+}
+
+// A friend's challenge: their Speed round cards, 60 seconds, beat their score. Plays once.
+export const playChallenge = (c) => run(async () => {
+  const dayDone = nothingDue();
+  const cards = must(await sb.rpc('lc_challenge_cards', { p_id: c.id })).filter((k) => Array.isArray(k.options) && answerOf(k));
+  const r = await speedRound(shuffle(cards));
+  const [f] = must(await sb.rpc('lc_finish_challenge', { p_id: c.id, p_score: r.best ?? 0 }));
+  const res = r.xp || dayDone ? await award(r.xp, dayDone) : null;
+  const won = f.their_score > f.score, tie = f.their_score === f.score;
+  const head = el('h2', { textContent: won ? `You beat ${f.other}!` : tie ? `A tie with ${f.other}` : `${f.other} wins this one` });
+  play(won ? 'done' : 'clear');
+  stage(el('div', { className: 'results' }, head, el('p', { textContent: r.note }),
+    dayDone ? freezeLine(res) : null,
+    tiles(['You', f.their_score, won ? 'mint' : 'ink'], [f.other, f.score, won || tie ? 'ink' : 'coral'], ['XP', `+${r.xp}`, 'ink']), back()));
+  if (won) confetti(head);
+});
 
 // Answer options sit in lanes A-D. With `marked`, they show the result instead of taking a pick.
 function options(card, onPick, marked) {
@@ -332,6 +370,7 @@ function speedRound(cards) {
   return new Promise((resolve) => {
     const end = Date.now() + 60_000;
     let right = 0, total = 0, combo = 0, best = 0, order = [], i = 0;
+    const seen = new Set(); // the cards shown, so they can be sent as a challenge
     const clock = el('b', { textContent: '60' }), comboEl = el('b', { textContent: '0' }), pop = popper(), box = el('div', { className: 'speed' });
     const timer = every(() => {
       const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
@@ -339,12 +378,13 @@ function speedRound(cards) {
       clock.textContent = left;
       if (left) return;
       clearInterval(timer);
-      resolve({ xp: right, note: `${right} of ${total} right in 60 seconds.`, best: right,
+      resolve({ xp: right, note: `${right} of ${total} right in 60 seconds.`, best: right, seen: [...seen],
         stats: [['Perfect', right, 'mint'], ['Miss', total - right, 'coral'], ['Max combo', best, 'ink']] });
     }, 200);
     const next = () => {
       if (i >= order.length) { order = shuffle(pool); i = 0; }
       const card = order[i++];
+      seen.add(card.id);
       box.replaceChildren(el('h2', { textContent: card.question }), options(card, (k) => {
         if (Date.now() >= end) return;
         total++;

@@ -1,6 +1,6 @@
 // node tests/text.test.mjs
 import assert from 'node:assert/strict';
-import { closeEnough, shuffle, grade } from '../public/text.js';
+import { closeEnough, shuffle, grade, level } from '../public/text.js';
 
 assert.ok(closeEnough('Paris', 'paris'));
 assert.ok(closeEnough('  café!', 'Cafe'));
@@ -16,4 +16,5 @@ assert.ok(closeEnough('Москва', 'москва'), 'non-Latin text is kept, 
 assert.ok(!closeEnough('Лондон', 'Москва'));
 assert.deepEqual(shuffle([1, 2, 3, 4]).sort(), [1, 2, 3, 4]);
 assert.deepEqual([grade(4, 4), grade(4, 5), grade(3, 5), grade(1, 2), grade(0, 0)], ['S', 'A', 'B', 'C', 'C']);
+assert.deepEqual([level(0, 0), level(2, 10), level(1, 4), level(5, 10), level(3, 4), level(4, 4)], [0, 0, 1, 2, 3, 3], 'Novice <25%, Learner, Solid from 50%, Expert from 75%');
 console.log('text checks passed');

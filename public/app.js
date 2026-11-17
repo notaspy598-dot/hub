@@ -3,6 +3,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID, LINK_WEBHOOK, VAPID_PUBLI
 import { initLearn } from './learn.js';
 import { initLinks, startLinks } from './links.js';
 import { initRemind, loadRemind } from './remind.js';
+import { initWeek, loadWeek } from './week.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -50,7 +51,7 @@ async function loadStats() {
 async function render(session) {
   $('login').hidden = !!session;
   $('app').hidden = !session;
-  if (session) { await loadStats(); startLinks(); loadRemind(); }
+  if (session) { await loadStats(); startLinks(); loadRemind(); loadWeek(); }
 }
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -68,7 +69,10 @@ $('password-form').addEventListener('submit', async (e) => {
   if (!error) e.target.reset();
 });
 $('logout').addEventListener('click', () => sb.auth.signOut());
-initLearn(sb, loadStats);
+// Back on Learn after a run, or after a claim or answer: the header and This week both move.
+const refresh = () => { loadStats(); loadWeek(); };
+initLearn(sb, refresh);
+initWeek(sb, refresh);
 initLinks(sb, LINK_WEBHOOK, loadStats);
 initRemind(sb, VAPID_PUBLIC_KEY);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -72,6 +72,15 @@
             <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
           </section>
 
+          <section id="use-card" class="panel-box" aria-labelledby="use-title" hidden>
+            <h2 id="use-title">Did you use it?</h2>
+            <p id="use-text"></p>
+            <div class="row">
+              <button id="use-yes" class="btn btn-go btn-sm">Yes, I used it</button>
+              <button id="use-no" class="btn btn-light btn-sm">Not yet</button>
+            </div>
+          </section>
+
           <section class="panel-box" aria-labelledby="practice-title">
             <h2 id="practice-title">Practice</h2>
             <p class="muted">Optional, any time. Gives XP but never changes when a card comes back.</p>
@@ -81,6 +90,22 @@
               <button data-game="blank" class="game lane-mint"><span class="key">F</span><span><b>Fill the blank</b><small>Type 5 answers</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
               <button data-game="speed" class="game lane-blue"><span class="key">S</span><span><b>Speed round</b><small>60 seconds, keep the combo</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
             </div>
+          </section>
+
+          <section id="week-card" class="panel-box" aria-labelledby="week-title" hidden>
+            <h2 id="week-title">This week</h2>
+            <p id="week-sum" class="muted"></p>
+            <h3>Quests</h3>
+            <ul id="quests" class="quests"></ul>
+            <h3>League <button id="rename" type="button" class="btn-ghost btn-link" hidden>Change name</button></h3>
+            <p id="league-hint" class="muted"></p>
+            <form id="name-form" class="inline-form" hidden>
+              <input name="name" maxlength="24" required placeholder="Your name in the league" aria-label="Your name in the league" autocomplete="nickname">
+              <button type="submit" class="btn btn-go">Join</button>
+            </form>
+            <ol id="league" class="league"></ol>
+            <ul id="challenges" class="challenges" aria-live="polite"></ul>
+            <p id="week-error" class="error" role="alert"></p>
           </section>
         </div>
 
@@ -120,6 +145,7 @@
           <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
             <h2 id="skills-title">Skills</h2>
             <ul id="skills" class="skills"></ul>
+            <p id="skills-error" class="error" role="alert"></p>
           </section>
         </div>
       </div>

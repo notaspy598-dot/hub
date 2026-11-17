@@ -3,8 +3,11 @@
 # from a folder that also holds 006_reminders.sql, index.ts (the remind function) and router.ts (Supabase's router).
 # It: runs the reminders SQL, installs the "remind" Edge Function, saves the keys next to it, restarts the
 # functions container, tests the function, and prints the secret the hourly n8n call needs. Safe to run again.
+# Everything runs in a subshell ( ... ), so even if this text is pasted into an SSH session, set -e and exit
+# only end the subshell, never your login.
+(
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname -- "$0")" # pasted, $0 is "-bash": stays in the current folder
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 fail() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 [ -f 006_reminders.sql ] && [ -f index.ts ] || fail "006_reminders.sql and index.ts must be in the same folder as this script."
@@ -108,3 +111,4 @@ esac
 say "Done. Copy these two lines for the last step (the hourly call in n8n):"
 echo "URL:           ${URL%/}/functions/v1/remind"
 echo "REMIND_SECRET: $SECRET"
+)

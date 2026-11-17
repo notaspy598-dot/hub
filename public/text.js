@@ -35,7 +35,11 @@ export function shuffle(list) {
   return a;
 }
 
-// Rank letter from a share of right answers (or cards mastered): all of them is S.
+// Skill level from the share of a skill's cards mastered (box 4+): 0 Novice, 1 Learner, 2 Solid, 3 Expert.
+export const LEVELS = ['Novice', 'Learner', 'Solid', 'Expert'];
+export const level = (mastered, total) => Math.min(3, Math.floor(4 * (total ? mastered / total : 0)));
+
+// Rank letter from a share of right answers: all of them is S.
 export const grade = (right, total) => {
   const r = total ? right / total : 0;
   return r >= 1 ? 'S' : r >= 0.8 ? 'A' : r >= 0.6 ? 'B' : 'C';

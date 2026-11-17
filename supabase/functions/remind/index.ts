@@ -21,7 +21,16 @@ const LINES: ((due: number, streak: number) => [string, string])[] = [
   (d) => ['New day, new track', `${d} ${d === 1 ? 'card' : 'cards'} from your saved links.`],
   (d, s) => ['Keep the combo going', s > 1 ? `${s}-day streak. ${d} ${d === 1 ? 'card' : 'cards'} today.` : `${d} ${d === 1 ? 'card' : 'cards'} today.`],
 ];
-const PAUSE: [string, string] = ['Pausing reminders', "These haven't been landing, so they're off for now. Turn them back on in Hub any time."];
+// The week's recap: only what happened, never what didn't.
+const ord = (n: number) => n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+function recapLine(r: { xp: number; days: number; mastered: number; used: number; place: number | null; players: number }): [string, string] {
+  const bits = [`${r.xp} XP`, `${r.days} ${r.days === 1 ? 'day' : 'days'} played`];
+  if (r.mastered) bits.push(`${r.mastered} ${r.mastered === 1 ? 'card' : 'cards'} mastered`);
+  if (r.used) bits.push(`${r.used} ${r.used === 1 ? 'idea' : 'ideas'} put to use`);
+  const place = r.place && r.players > 1 ? ` ${ord(r.place)} of ${r.players} in the league.` : '';
+  return ['Your week in Hub', `${bits.join(', ')}.${place} New quests tomorrow.`];
+}
+const PAUSE: [string, string] =['Pausing reminders', "These haven't been landing, so they're off for now. Turn them back on in Hub any time."];
 
 Deno.serve(async (req) => {
   // Edge Functions may also check the Authorization JWT; this header is what proves the caller is your scheduler.
@@ -29,11 +38,16 @@ Deno.serve(async (req) => {
   const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
   const { data, error } = await db.rpc('lc_claim_reminders');
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  // Sunday's weekly recap (sql/008). Before 008 is run this errors, and only the reminders go out.
+  // One notification per person: the recap, with today's cards added when a reminder is due too.
+  const out = new Map<string, any>((data ?? []).map((r: any) => [r.user_id, r]));
+  for (const c of (await db.rpc('lc_claim_recaps')).data ?? []) out.set(c.user_id, { ...out.get(c.user_id), user_id: c.user_id, sub: c.sub, recap: c });
 
   const day = Math.floor(Date.now() / 864e5);
   let sent = 0, gone = 0, failed = 0;
-  for (const r of data ?? []) {
-    const [title, body] = r.ignored >= 5 ? PAUSE : LINES[(day + sent) % LINES.length](r.due, r.streak);
+  for (const r of out.values()) {
+    const [title, line] = r.recap ? recapLine(r.recap) : r.ignored >= 5 ? PAUSE : LINES[(day + sent) % LINES.length](r.due, r.streak);
+    const body = r.recap && r.due ? `${line} ${r.due} ${r.due === 1 ? 'card is' : 'cards are'} due today.` : line;
     try {
       await webpush.sendNotification(r.sub, JSON.stringify({ title, body, badge: r.due, url: './#learn' }), { TTL: 4 * 3600, urgency: 'normal' });
       sent++;
