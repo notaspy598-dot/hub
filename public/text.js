@@ -38,6 +38,9 @@ export function shuffle(list) {
 // Skill level from the share of a skill's cards mastered (box 4+): 0 Novice, 1 Learner, 2 Solid, 3 Expert.
 export const LEVELS = ['Novice', 'Learner', 'Solid', 'Expert'];
 export const level = (mastered, total) => Math.min(3, Math.floor(4 * (total ? mastered / total : 0)));
+// Percent of the way to mastering every card: each correct Starter answer is one of a card's 4 steps (boxes 1-4),
+// so progress shows every day, not only when a card reaches box 4 a week later. steps = sum of min(box, 4).
+export const toMastery = (steps, total) => (total ? Math.round(25 * steps / total) : 0);
 
 // Rank letter from a share of right answers: all of them is S.
 export const grade = (right, total) => {

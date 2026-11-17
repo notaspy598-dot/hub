@@ -56,7 +56,7 @@ export async function loadProgress() {
   $('activity-card').hidden = !!act.error;
   $('trophies-card').hidden = !!life.error;
   if (!act.error) activity(act.data);
-  if (!life.error && life.data?.[0]) trophies({ ...life.data[0], expert: Object.values(levels).filter((lv) => lv === 3).length });
+  if (!life.error && life.data?.[0]) trophies({ ...life.data[0], expert: Object.values(levels).filter((s) => s.lv === 3).length });
 }
 
 // 12 weeks as columns, Monday on top, in UTC days like the streak. Darker means more XP that day.

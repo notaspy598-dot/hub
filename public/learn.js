@@ -173,14 +173,17 @@ async function starter() {
   // An open loop for tomorrow: cards already waiting by the end of tomorrow (local time).
   const end = new Date(); end.setDate(end.getDate() + 2); end.setHours(0, 0, 0, 0);
   const { count: tomorrow } = await sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', end.toISOString());
-  const now = await skillLevels(), ups = Object.keys(now).filter((k) => now[k] > (levels[k] ?? 0));
+  const now = await skillLevels(), ups = Object.keys(now).filter((k) => now[k].lv > (levels[k]?.lv ?? 0));
+  // Daily progress even before a card is mastered: each skill that moved toward mastery today.
+  const gains = Object.keys(now).filter((k) => !ups.includes(k) && now[k].pct > (levels[k]?.pct ?? 0));
   const badge = el('div', { className: `grade g-${g.toLowerCase()}`, textContent: g, ariaLabel: `Grade ${g}` });
   play('done');
   stage(el('div', { className: 'results' }, badge,
     el('h2', { textContent: 'Day done' }),
     n > before ? el('p', { className: 'streak-up', textContent: streakLine(n) }) : null,
     freezeLine(res),
-    ...ups.map((k) => el('p', { className: 'streak-up', textContent: `Level up: ${k} is now ${LEVELS[now[k]]}.` })),
+    ...ups.map((k) => el('p', { className: 'streak-up', textContent: `Level up: ${k} is now ${LEVELS[now[k].lv]}.` })),
+    ...gains.map((k) => el('p', { className: 'muted', textContent: `${k}: ${levels[k]?.pct ?? 0}% → ${now[k].pct}% toward mastery.` })),
     tiles(...tally(t)),
     tiles(['XP', `+${STARTER_XP}`, 'ink'], res && ['Streak', days(n), 'ink'], res && ['Freezes', `${res.freezes ?? 0}/2`, 'blue']),
     tomorrow ? el('p', { className: 'muted', textContent: `Tomorrow: ${tomorrow} ${tomorrow === 1 ? 'card' : 'cards'} on your track.` }) : null,

@@ -1,4 +1,4 @@
-import { level, LEVELS, norm } from './text.js';
+import { level, toMastery, LEVELS, norm } from './text.js';
 import { play } from './sound.js';
 import { shareButton } from './share.js';
 // Add a link → lc_add_link queues it → n8n's "Learning Coach: Web Links" workflow makes the key ideas and cards.
@@ -83,19 +83,19 @@ async function restore(id, btn) {
   loadLinks(); onCards();
 }
 
-// Per skill: cards, mastered (box 4+) and due.
+// Per skill: cards, mastered (box 4+), steps toward mastery (box up to 4) and due.
 const bySkill = (cards, now = '') => {
   const skills = {};
   for (const c of cards) {
-    const k = (skills[c.skill || 'Other'] ||= { total: 0, mastered: 0, due: 0 });
-    k.total++; k.mastered += c.box >= 4; k.due += c.due_at <= now;
+    const k = (skills[c.skill || 'Other'] ||= { total: 0, mastered: 0, steps: 0, due: 0 });
+    k.total++; k.mastered += c.box >= 4; k.steps += Math.min(c.box, 4); k.due += c.due_at <= now;
   }
   return skills;
 };
-// Each skill's level, so the Starter can tell when one goes up.
+// Each skill's level and % toward mastery, so the Starter can tell what went up today.
 export async function skillLevels() {
   const { data } = await sb.from('lc_cards').select('skill, box').limit(2000);
-  return Object.fromEntries(Object.entries(bySkill(data ?? [])).map(([name, k]) => [name, level(k.mastered, k.total)]));
+  return Object.fromEntries(Object.entries(bySkill(data ?? [])).map(([name, k]) => [name, { lv: level(k.mastered, k.total), pct: toMastery(k.steps, k.total) }]));
 }
 
 // Go deeper: the AI writes the next layer of a skill you already have, as a new "link" in the list.
@@ -131,10 +131,10 @@ export async function loadLinks() {
   $('links-empty').hidden = src.data.length > 0;
   // Ranked by share mastered, most first. Each skill shows its level (Novice to Expert) from that share.
   $('skills').replaceChildren(...Object.entries(skills).sort(([, a], [, b]) => b.mastered / b.total - a.mastered / a.total).map(([name, k]) => {
-    const lv = level(k.mastered, k.total);
+    const lv = level(k.mastered, k.total), pct = toMastery(k.steps, k.total);
     return el('li', {}, el('span', { className: `level lv-${lv}`, textContent: LEVELS[lv] }), el('b', { textContent: name }),
-      el('span', { className: 'meter', role: 'img', ariaLabel: `${k.mastered} of ${k.total} mastered` }, el('i', { style: `width:${Math.round(100 * k.mastered / k.total)}%` })),
-      el('small', { textContent: `${k.mastered}/${k.total} mastered · ${k.due} due` }),
+      el('span', { className: 'meter', role: 'img', ariaLabel: `${pct}% toward mastery` }, el('i', { style: `width:${pct}%` })),
+      el('small', { textContent: `${pct}% toward mastery · ${k.mastered}/${k.total} mastered · ${k.due} due` }),
       name === 'Other' ? null : el('button', { type: 'button', className: 'btn btn-light btn-sm', onclick: (e) => goDeeper(name, e.currentTarget) }, 'Go deeper'));
   }));
   $('skills-card').hidden = !cards.data.length;
