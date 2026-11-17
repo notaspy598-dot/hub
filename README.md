@@ -49,6 +49,16 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 4. **Domain:** `https://hub.kingsolomon.tech`. Wildcard DNS already covers it.
 5. Deploy, open the page and log in. The first login creates your learner profile (or, with `TELEGRAM_ID`, picks up your bot chat's cards). The header should then show your XP and streak.
 
+### Adding friends
+
+Sign-ups stay closed, so you create each account:
+
+1. In Supabase Studio → Authentication → Users → Add user → their email and a temporary password, and tick *Auto Confirm User*.
+2. Send them the page link and the temporary password, ideally in different messages.
+3. They log in and set their own password under *Your password* on the Learn page. Their first login gives them their own empty learner profile; nobody sees anyone else's cards, links or XP.
+
+To remove someone, delete them in Studio → Authentication → Users. That ends their login; their cards stay in the database, unlinked from any account.
+
 If a variable is missing or malformed, the container stops and Coolify's logs say which one.
 
 To update the page later, push to the repo and redeploy.

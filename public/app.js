@@ -60,6 +60,13 @@ $('login-form').addEventListener('submit', async (e) => {
   const { error } = await sb.auth.signInWithPassword({ email: form.get('email'), password: form.get('password') });
   if (error) $('login-error').textContent = error.message;
 });
+$('password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { error } = await sb.auth.updateUser({ password: new FormData(e.target).get('password') });
+  $('password-msg').className = error ? 'error' : 'muted';
+  $('password-msg').textContent = error ? error.message : 'Saved. Use it next time you log in.';
+  if (!error) e.target.reset();
+});
 $('logout').addEventListener('click', () => sb.auth.signOut());
 initLearn(sb, loadStats);
 initLinks(sb, LINK_WEBHOOK, loadStats);

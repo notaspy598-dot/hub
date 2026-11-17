@@ -107,6 +107,16 @@
             <p id="remind-error" class="error" role="alert"></p>
           </section>
 
+          <section class="panel-box" aria-labelledby="password-title">
+            <h2 id="password-title">Your password</h2>
+            <p class="muted">Got a temporary password? Choose your own here.</p>
+            <form id="password-form" class="inline-form">
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="New password" aria-label="New password">
+              <button type="submit" class="btn btn-go">Save</button>
+            </form>
+            <p id="password-msg" class="error" role="status"></p>
+          </section>
+
           <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
             <h2 id="skills-title">Skills</h2>
             <ul id="skills" class="skills"></ul>
