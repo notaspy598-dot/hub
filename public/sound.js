@@ -13,11 +13,22 @@ try { on = localStorage.getItem(KEY) !== 'off'; } catch { /* private mode: sound
 const session = () => { if (navigator.audioSession) navigator.audioSession.type = on ? 'playback' : 'auto'; };
 session();
 
-// iOS only lets audio start inside a tap, so the context is created or resumed on the first touches.
-const unlock = () => {
-  try { ctx ||= new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state !== 'running') ctx.resume(); } catch { /* no Web Audio */ }
+// iOS only lets audio start inside a tap, so the context is made in one. iOS also leaves a context "interrupted"
+// for good once Hub was in the background or other audio took the "playback" session: resume() then does nothing
+// and Hub went silent. So any tap that finds it not running swaps it for a fresh one. Capture phase, so the
+// context is ready before the tapped button's own handler plays a sound.
+let born = 0;
+const unlock = (e) => {
+  // Untrusted: the haptic tick's own click. The 1 s grace stops touchend and click of one tap making two.
+  if (!e.isTrusted || ctx?.state === 'running' || performance.now() - born < 1000) return;
+  try {
+    ctx?.close().catch(() => {});
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    born = performance.now();
+    ctx.resume();
+  } catch { /* no Web Audio */ }
 };
-for (const type of ['pointerdown', 'touchend', 'click']) addEventListener(type, unlock, { passive: true });
+for (const type of ['touchend', 'click', 'keydown']) addEventListener(type, unlock, { capture: true, passive: true });
 
 const hz = (semi) => 523.25 * 2 ** (semi / 12); // semitones above C5
 function tone(semi, at, dur, vol = 0.16, type = 'triangle') {
@@ -73,8 +84,9 @@ export const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // Confetti in the lane colours, bursting from `from` (or the middle of the screen). Kept for the peaks only
 // (the day done, a streak milestone, a flawless run, a new best) so it stays a reward and not wallpaper.
+// With Reduce Motion on, nothing flies: the pieces appear already scattered around the spot and fade out.
 export function confetti(from, count = 70) {
-  if (calm()) return;
+  const still = calm();
   const r = from?.getBoundingClientRect(), x0 = r ? r.left + r.width / 2 : innerWidth / 2, y0 = r ? r.top + r.height / 2 : innerHeight / 2;
   const layer = Object.assign(document.createElement('div'), { className: 'confetti', ariaHidden: 'true' });
   layer.style.cssText = `--x:${x0}px;--y:${y0}px`;
@@ -82,6 +94,11 @@ export function confetti(from, count = 70) {
     const p = layer.appendChild(document.createElement('i'));
     p.style.background = `var(--${['coral', 'gold', 'mint', 'blue'][i % 4]})`;
     const dx = (Math.random() - 0.5) * innerWidth, up = innerHeight * (0.2 + Math.random() * 0.3), spin = (Math.random() - 0.5) * 1440;
+    if (still) {
+      p.style.transform = `translate(${dx * 0.8}px, ${(Math.random() - 0.5) * up * 1.4}px) rotate(${spin}deg)`;
+      p.animate([{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }], { duration: 2200, fill: 'both' });
+      continue;
+    }
     p.animate([
       { transform: 'translate(0, 0) rotate(0deg)' },
       { transform: `translate(${dx * 0.5}px, ${-up}px) rotate(${spin / 2}deg)`, offset: 0.3, easing: 'ease-in' },
