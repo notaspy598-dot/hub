@@ -123,6 +123,28 @@ export async function loadLinks() {
   return src.data;
 }
 
+// History: everything you've added, grouped by the day you added it. Loaded when the tab opens.
+// shortcut: newest 500 only, add paging if anyone gets past that.
+export async function loadHistory() {
+  const { data, error } = await sb.from('lc_sources').select('id, url, title, skill, lesson_url, key_ideas, created_at').order('created_at', { ascending: false }).limit(500);
+  $('history-error').textContent = error ? `Couldn't load your history (${error.message}).` : '';
+  if (error) return;
+  const days = new Map();
+  for (const s of data) {
+    const day = new Date(s.created_at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    if (!days.has(day)) days.set(day, []);
+    days.get(day).push(s);
+  }
+  $('history-list').replaceChildren(...[...days].map(([day, rows]) => el('section', { className: 'history-day' }, el('h3', { textContent: day }),
+    el('ul', { className: 'links' }, ...rows.map((s) => el('li', {},
+      // Go deeper rounds have no web address, only a title.
+      /^https?:\/\//.test(s.url) ? el('a', { className: 'title', href: s.url, target: '_blank', rel: 'noopener' }, s.title || s.url, icon('external')) : el('span', { className: 'title', textContent: s.title || s.url }),
+      s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
+      s.lesson_url ? el('span', { className: 'state' }, el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener' }, 'Open lesson', icon('external'))) : null,
+      s.key_ideas?.length ? el('details', {}, el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas)) : null))))));
+  $('history-empty').hidden = data.length > 0;
+}
+
 export function initLinks(client, hook, changed) {
   sb = client; webhook = hook; onCards = changed;
   if (!webhook) $('link-error').textContent = 'Adding links needs LINK_WEBHOOK set in Coolify.';

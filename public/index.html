@@ -33,6 +33,7 @@
     <symbol id="i-volume-off" viewBox="0 0 24 24"><path d="M6 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5A.8.8 0 0 1 11 5v14a.8.8 0 0 1-1.5.5L6 15M16 10l4 4m0-4l-4 4"/></symbol>
     <symbol id="i-clock"viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 3"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6M11 13l9-9M15 4h5v5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0-8 0M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 15l6-6M11 6l.463-.536a5 5 0 0 1 7.071 7.072L18 13M13 18l-.397.534a5.068 5.068 0 0 1-7.127 0 4.972 4.972 0 0 1 0-7.071L6 11"/></symbol>
   </svg>
 
@@ -56,101 +57,130 @@
         <span class="stat stat-gold" title="XP"><svg class="ico"><use href="#i-bolt"/></svg><b id="xp">0</b><small>XP</small></span>
         <span class="stat stat-mint" title="Cards due"><svg class="ico"><use href="#i-cards"/></svg><b id="due">0</b><small>due</small></span>
       </div>
-      <button id="logout" class="btn-icon" aria-label="Log out" title="Log out"><svg class="ico"><use href="#i-logout"/></svg></button>
+      <button id="account-open" class="btn-icon" aria-label="Account" title="Account"><svg class="ico"><use href="#i-user"/></svg></button>
     </header>
 
     <section id="tab-learn" class="page">
       <p id="setup-error" class="notice" role="alert" hidden></p>
-      <div id="learn-home" class="home">
-        <div class="col">
-          <section class="starter" aria-labelledby="starter-title">
-            <h2 id="starter-title" class="display">Daily Starter</h2>
-            <p class="starter-count"><b id="starter-due" class="display">0</b> <span id="starter-due-label">cards on today's track</span></p>
-            <ol id="starter-track" class="track" aria-hidden="true"></ol>
-            <p id="streak-note" class="streak-note" role="status" hidden></p>
-            <p>Up to 10 due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
-            <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
-          </section>
+      <div id="learn-home">
+        <nav class="tabs" aria-label="Sections">
+          <button type="button" data-tab="today" aria-current="page">Today</button>
+          <button type="button" data-tab="progress">Progress</button>
+          <button type="button" data-tab="history">History</button>
+        </nav>
+        <div id="today" class="home">
+          <div class="col">
+            <section class="starter" aria-labelledby="starter-title">
+              <h2 id="starter-title" class="display">Daily Starter</h2>
+              <p class="starter-count"><b id="starter-due" class="display">0</b> <span id="starter-due-label">cards on today's track</span></p>
+              <ol id="starter-track" class="track" aria-hidden="true"></ol>
+              <p id="streak-note" class="streak-note" role="status" hidden></p>
+              <p>Up to 10 due cards, topics mixed. Think of each answer before the options show; missed ones come back until you get them right.</p>
+              <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
+            </section>
 
-          <section id="use-card" class="panel-box" aria-labelledby="use-title" hidden>
-            <h2 id="use-title">Did you use it?</h2>
-            <p id="use-text"></p>
-            <div class="row">
-              <button id="use-yes" class="btn btn-go btn-sm">Yes, I used it</button>
-              <button id="use-no" class="btn btn-light btn-sm">Not yet</button>
-            </div>
-          </section>
+            <section id="use-card" class="panel-box" aria-labelledby="use-title" hidden>
+              <h2 id="use-title">Did you use it?</h2>
+              <p id="use-text"></p>
+              <div class="row">
+                <button id="use-yes" class="btn btn-go btn-sm">Yes, I used it</button>
+                <button id="use-no" class="btn btn-light btn-sm">Not yet</button>
+              </div>
+            </section>
 
-          <section class="panel-box" aria-labelledby="practice-title">
-            <h2 id="practice-title">Practice</h2>
-            <p class="muted">Optional, any time. Gives XP but never changes when a card comes back.</p>
-            <div class="games">
-              <button data-game="weak" class="game lane-coral"><span class="key">W</span><span><b>Weak spots</b><small>Cards you keep missing</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
-              <button data-game="match" class="game lane-gold"><span class="key">M</span><span><b>Match pairs</b><small>6 pairs against the clock</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
-              <button data-game="blank" class="game lane-mint"><span class="key">F</span><span><b>Fill the blank</b><small>Type 5 answers</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
-              <button data-game="speed" class="game lane-blue"><span class="key">S</span><span><b>Speed round</b><small>60 seconds, keep the combo</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
-            </div>
-          </section>
+            <section class="panel-box" aria-labelledby="practice-title">
+              <h2 id="practice-title">Practice</h2>
+              <p class="muted">Optional, any time. Gives XP but never changes when a card comes back.</p>
+              <div class="games">
+                <button data-game="weak" class="game lane-coral"><span class="key">W</span><span><b>Weak spots</b><small>Cards you keep missing</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+                <button data-game="match" class="game lane-gold"><span class="key">M</span><span><b>Match pairs</b><small>6 pairs against the clock</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+                <button data-game="blank" class="game lane-mint"><span class="key">F</span><span><b>Fill the blank</b><small>Type 5 answers</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+                <button data-game="speed" class="game lane-blue"><span class="key">S</span><span><b>Speed round</b><small>60 seconds, keep the combo</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
+              </div>
+            </section>
+          </div>
 
-          <section id="week-card" class="panel-box" aria-labelledby="week-title" hidden>
-            <h2 id="week-title">This week</h2>
-            <p id="week-sum" class="muted"></p>
-            <h3>Quests</h3>
-            <ul id="quests" class="quests"></ul>
-            <h3>League <button id="rename" type="button" class="btn-ghost btn-link" hidden>Change name</button></h3>
-            <p id="league-hint" class="muted"></p>
-            <form id="name-form" class="inline-form" hidden>
-              <input name="name" maxlength="24" required placeholder="Your name in the league" aria-label="Your name in the league" autocomplete="nickname">
-              <button type="submit" class="btn btn-go">Join</button>
-            </form>
-            <ol id="league" class="league"></ol>
-            <ul id="challenges" class="challenges" aria-live="polite"></ul>
-            <p id="week-error" class="error" role="alert"></p>
-          </section>
+          <div class="col">
+            <section class="panel-box" aria-labelledby="link-title">
+              <h2 id="link-title">Add a link</h2>
+              <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes key ideas and 5 to 15 review cards, more for denser topics. Tap <b>Build lesson</b> on it when you want a deeper interactive lesson.</p>
+              <form id="link-form" class="inline-form">
+                <span class="field"><svg class="ico"><use href="#i-link"/></svg><input name="url" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=…" aria-label="Link to learn from" autocomplete="off"></span>
+                <button type="submit" class="btn btn-go">Add</button>
+              </form>
+              <p id="link-error" class="error" role="alert"></p>
+              <ul id="links" class="links" aria-live="polite"></ul>
+              <p id="links-empty" class="empty" hidden>No links yet. Paste one above, or share a video to Hub from your phone.</p>
+            </section>
+          </div>
         </div>
 
-        <div class="col">
-          <section class="panel-box" aria-labelledby="link-title">
-            <h2 id="link-title">Add a link</h2>
-            <p class="muted">A YouTube, TikTok, Instagram or Facebook video, an Instagram carousel or photo post, or an article. It becomes key ideas and 5 to 15 review cards, more for denser topics. Tap <b>Build lesson</b> on it when you want a deeper interactive lesson.</p>
-            <form id="link-form" class="inline-form">
-              <span class="field"><svg class="ico"><use href="#i-link"/></svg><input name="url" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=…" aria-label="Link to learn from" autocomplete="off"></span>
-              <button type="submit" class="btn btn-go">Add</button>
-            </form>
-            <p id="link-error" class="error" role="alert"></p>
-            <ul id="links" class="links" aria-live="polite"></ul>
-            <p id="links-empty" class="empty" hidden>No links yet. Paste one above, or share a video to Hub from your phone.</p>
-          </section>
-
-          <section id="remind-card" class="panel-box" aria-labelledby="remind-title" hidden>
-            <h2 id="remind-title">Daily reminder</h2>
-            <p id="remind-text" class="muted"></p>
-            <div id="remind-controls" class="inline-form">
-              <select id="remind-hour" aria-label="Reminder time"></select>
-              <button id="remind-toggle" class="btn btn-go">Turn on</button>
-            </div>
-            <p id="remind-error" class="error" role="alert"></p>
-          </section>
-
-          <section class="panel-box" aria-labelledby="password-title">
-            <h2 id="password-title">Your password</h2>
-            <p class="muted">Got a temporary password? Choose your own here.</p>
-            <form id="password-form" class="inline-form">
-              <input name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="New password" aria-label="New password">
-              <button type="submit" class="btn btn-go">Save</button>
-            </form>
-            <p id="password-msg" class="error" role="status"></p>
-          </section>
-
-          <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
-            <h2 id="skills-title">Skills</h2>
-            <ul id="skills" class="skills"></ul>
-            <p id="skills-error" class="error" role="alert"></p>
-          </section>
+        <div id="progress" class="home" hidden>
+          <div class="col">
+            <section id="week-card" class="panel-box" aria-labelledby="week-title" hidden>
+              <h2 id="week-title">This week</h2>
+              <p id="week-sum" class="muted"></p>
+              <h3>Quests</h3>
+              <ul id="quests" class="quests"></ul>
+              <h3>League <button id="rename" type="button" class="btn-ghost btn-link" hidden>Change name</button></h3>
+              <p id="league-hint" class="muted"></p>
+              <form id="name-form" class="inline-form" hidden>
+                <input name="name" maxlength="24" required placeholder="Your name in the league" aria-label="Your name in the league" autocomplete="nickname">
+                <button type="submit" class="btn btn-go">Join</button>
+              </form>
+              <ol id="league" class="league"></ol>
+              <ul id="challenges" class="challenges" aria-live="polite"></ul>
+              <p id="week-error" class="error" role="alert"></p>
+            </section>
+          </div>
+          <div class="col">
+            <section id="skills-card" class="panel-box" aria-labelledby="skills-title" hidden>
+              <h2 id="skills-title">Skills</h2>
+              <ul id="skills" class="skills"></ul>
+              <p id="skills-error" class="error" role="alert"></p>
+            </section>
+          </div>
+          <p class="empty progress-empty">Play a few cards and your week, quests and skills show up here.</p>
         </div>
+
+        <section id="history" class="panel-box" aria-labelledby="history-title" hidden>
+          <h2 id="history-title">History</h2>
+          <p class="muted">Everything you've added, newest first.</p>
+          <div id="history-list"></div>
+          <p id="history-empty" class="empty" hidden>Nothing yet. Links you add show up here.</p>
+          <p id="history-error" class="error" role="alert"></p>
+        </section>
       </div>
       <div id="learn-stage" class="stage" aria-live="polite" hidden></div>
     </section>
   </div>
+
+  <dialog id="account" class="account" aria-labelledby="account-title">
+    <div class="account-head">
+      <h2 id="account-title">Account</h2>
+      <form method="dialog"><button class="btn-icon" aria-label="Close" title="Close"><svg class="ico"><use href="#i-x"/></svg></button></form>
+    </div>
+    <section id="remind-card" class="account-part" aria-labelledby="remind-title" hidden>
+      <h3 id="remind-title">Daily reminder</h3>
+      <p id="remind-text" class="muted"></p>
+      <div id="remind-controls" class="inline-form">
+        <select id="remind-hour" aria-label="Reminder time"></select>
+        <button id="remind-toggle" class="btn btn-go">Turn on</button>
+      </div>
+      <p id="remind-error" class="error" role="alert"></p>
+    </section>
+
+    <section class="account-part" aria-labelledby="password-title">
+      <h3 id="password-title">Password</h3>
+      <p class="muted">Got a temporary password? Choose your own here.</p>
+      <form id="password-form" class="inline-form">
+        <input name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="New password" aria-label="New password">
+        <button type="submit" class="btn btn-go">Save</button>
+      </form>
+      <p id="password-msg" class="error" role="status"></p>
+    </section>
+
+    <button id="logout" type="button" class="btn btn-light"><svg class="ico"><use href="#i-logout"/></svg>Log out</button>
+  </dialog>
 </body>
 </html>

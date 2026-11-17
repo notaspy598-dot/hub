@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_ID, LINK_WEBHOOK, VAPID_PUBLIC_KEY } from './config.js';
 import { initLearn } from './learn.js';
-import { initLinks, startLinks } from './links.js';
+import { initLinks, startLinks, loadHistory } from './links.js';
 import { initRemind, loadRemind } from './remind.js';
 import { initWeek, loadWeek } from './week.js';
 
@@ -68,7 +68,16 @@ $('password-form').addEventListener('submit', async (e) => {
   $('password-msg').textContent = error ? error.message : 'Saved. Use it next time you log in.';
   if (!error) e.target.reset();
 });
-$('logout').addEventListener('click', () => sb.auth.signOut());
+$('logout').addEventListener('click', () => { $('account').close(); sb.auth.signOut(); });
+// Reminder, password and log out live in a dialog off the header, out of the way of the day's work.
+$('account-open').addEventListener('click', () => $('account').showModal());
+// Tabs: plain show/hide, no URL change, so the games' back-button handling (learn.js) is untouched.
+// Games play in #learn-stage, outside the tabs, so a challenge started from Progress still shows.
+const tabs = document.querySelectorAll('.tabs button');
+tabs.forEach((t) => t.addEventListener('click', () => {
+  tabs.forEach((b) => { b === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); $(b.dataset.tab).hidden = b !== t; });
+  if (t.dataset.tab === 'history') loadHistory();
+}));
 // Back on Learn after a run, or after a claim or answer: the header and This week both move.
 const refresh = () => { loadStats(); loadWeek(); };
 initLearn(sb, refresh);

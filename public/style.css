@@ -106,6 +106,24 @@ input:focus { border-color: var(--ink); outline: none; }
 .col { display: grid; gap: 1rem; align-content: start; }
 @media (min-width: 860px) { .home { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.25rem; } }
 
+/* Tabs: Today / Progress / History. A pressed key in the HUD's colours; the open one is ink. */
+.tabs { display: flex; gap: .35rem; margin-bottom: 1rem; padding: .3rem; border-radius: var(--r); background: var(--hud); width: max-content; max-width: 100%; }
+.tabs button { min-height: 40px; padding: .45rem 1rem; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); font: 700 var(--t-s)/1 var(--display); letter-spacing: .02em; }
+.tabs button:hover { color: var(--ink); background: var(--panel); }
+.tabs button[aria-current] { background: var(--ink); color: var(--ink-dark); }
+.progress-empty { grid-column: 1 / -1; }
+#progress:has(.panel-box:not([hidden])) .progress-empty { display: none; }
+.history-day { display: grid; gap: .4rem; margin-top: .6rem; }
+.history-day h3 { font-size: var(--t-s); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+
+/* Account: reminder, password and log out, off the header's person button. */
+.account { width: min(100% - 32px, 440px); padding: 1.25rem; border: 2px solid var(--line); border-radius: var(--r-lg); background: var(--panel); color: var(--ink); }
+.account[open] { display: grid; gap: 1.25rem; }
+.account::backdrop { background: rgb(10 7 34 / .7); }
+.account-head { display: flex; align-items: center; justify-content: space-between; margin: -.5rem -.5rem -.5rem 0; }
+.account-part { display: grid; gap: .5rem; }
+.account-part h3 { font-size: var(--t-s); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+
 .panel-box { background: var(--panel); border-radius: var(--r-lg); padding: 1.25rem; display: grid; gap: .6rem; }
 .panel-box > h2 + .muted { margin-top: -.2rem; }
 .notice { margin: 0 0 1rem; padding: .85rem 1rem; border-radius: var(--r); background: #3a1f3a; color: #ffd0c4; border: 2px solid var(--coral); }
