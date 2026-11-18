@@ -5,10 +5,31 @@ import { initLinks, startLinks, loadHistory } from './links.js';
 import { initRemind, loadRemind } from './remind.js';
 import { initWeek, loadWeek, loadProgress } from './week.js';
 import { initExport } from './export.js';
+import { initShop, homeNudge } from './shop.js';
 import { localDay } from './text.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
+
+// A theme bought in the shop (sql/011). Kept on this phone too, so the next launch opens in it.
+function wear(theme) {
+  const name = theme?.replace('theme:', '') || '';
+  if (name) document.documentElement.dataset.theme = name; else delete document.documentElement.dataset.theme;
+  document.querySelector('meta[name=theme-color]').content = getComputedStyle(document.documentElement).getPropertyValue('--hud').trim();
+  try { localStorage.setItem('hub-theme', name); } catch { /* not kept */ }
+}
+try { wear(localStorage.getItem('hub-theme')); } catch { /* no storage */ }
+
+// The Starter boost: practice XP is doubled for 15 minutes after today first counts (sql/011).
+let boostTimer;
+function boostNote(until) {
+  clearTimeout(boostTimer);
+  const left = until ? Date.parse(until) - Date.now() : 0;
+  $('boost-note').hidden = left <= 0;
+  if (left <= 0) return;
+  $('boost-note').textContent = `2× XP on practice games for ${Math.ceil(left / 60000)} more min. Today's play turned it on.`;
+  boostTimer = setTimeout(() => boostNote(until), Math.min(left, 60000));
+}
 
 // A header number that went up (XP, streak) pops, so the reward lands where it is kept. Not on the first load.
 let shown = false;
@@ -28,7 +49,7 @@ async function loadStats() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const zone = await sb.rpc('lc_set_tz', { p_tz: tz });
   const [profile, due] = await Promise.all([
-    sb.from('lc_profile').select('xp, streak, last_active, freezes, daily_goal').maybeSingle(),
+    sb.from('lc_profile').select('*').maybeSingle(), // '*': the shop's columns (sql/011) when they exist
     sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', new Date().toISOString()),
   ]);
   // Saved before and still not what the request ran in: PostgREST isn't calling lc_local_time, so days are still UTC.
@@ -44,8 +65,16 @@ async function loadStats() {
   // Same rule as the database (sql/007, your days since sql/010): the streak is alive if you played today or yesterday,
   // or missed no more days than you have freezes. Playing today then spends them.
   const missed = p?.last_active ? Math.round((Date.parse(localDay()) - Date.parse(p.last_active)) / 864e5) - 1 : Infinity;
-  show('xp', p?.xp ?? 0);
-  show('streak', p && missed <= (p.freezes ?? 0) ? p.streak : 0);
+  // The header shows what you can spend; everything earned stays in xp for the league and trophies.
+  const balance = (p?.xp ?? 0) - (p?.xp_spent ?? 0);
+  show('xp', balance);
+  $('shop-open').ariaLabel = `${balance} XP to spend. Open the shop`;
+  $('shop-open').title = `${balance.toLocaleString()} XP to spend, ${(p?.xp ?? 0).toLocaleString()} earned in all. Open the shop`;
+  if (p && 'theme' in p) wear(p.theme);
+  boostNote(p?.boost_until);
+  const streak = p && missed <= (p.freezes ?? 0) ? p.streak : 0;
+  show('streak', streak);
+  homeNudge(p, balance, streak);
   show('freezes', p?.freezes ?? 0);
   const frozen = p && missed > 0 && missed <= p.freezes;
   $('streak-note').hidden = !frozen;
@@ -103,6 +132,7 @@ $('password-form').addEventListener('submit', async (e) => {
 $('logout').addEventListener('click', () => {
   $('account').close();
   try { localStorage.removeItem('hub-today'); localStorage.removeItem('hub-pending'); } catch { /* nothing kept */ }
+  wear(null);
   sb.auth.signOut();
 });
 // Reminder, password and log out live in a dialog off the header, out of the way of the day's work.
@@ -131,5 +161,6 @@ initWeek(sb, refresh);
 initLinks(sb, LINK_WEBHOOK, loadStats);
 initRemind(sb, VAPID_PUBLIC_KEY);
 initExport(sb);
+initShop(sb, refresh);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sb.auth.onAuthStateChange((_event, session) => { render(session); });

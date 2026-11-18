@@ -121,8 +121,9 @@ function trophies(life) {
 }
 
 export async function loadWeek() {
-  const [week, quests, league, challenges, prompt] = await Promise.all(
-    ['lc_my_week', 'lc_quests', 'lc_league', 'lc_my_challenges', 'lc_use_prompt'].map((fn) => sb.rpc(fn)));
+  const [week, quests, league, challenges, prompt, titles] = await Promise.all(
+    ['lc_my_week', 'lc_quests', 'lc_league', 'lc_my_challenges', 'lc_use_prompt', 'lc_league_titles'].map((fn) => sb.rpc(fn)));
+  const title = new Map((titles.data ?? []).map((t) => [t.name, t.title])); // empty before sql/011
   const off = [week, quests, league, challenges, prompt].some((r) => r.error);
   $('week-card').hidden = off;
   use = !off && prompt.data?.[0];
@@ -140,7 +141,9 @@ export async function loadWeek() {
   $('quests').replaceChildren(...quests.data.map(quest));
 
   $('league').replaceChildren(...league.data.map((p, i) => el('li', { className: p.me ? 'me' : '' },
-    el('span', { className: 'pos', textContent: i + 1 }), el('b', { textContent: p.me ? `${p.name} (you)` : p.name }), el('span', { textContent: `${p.xp} XP` }))));
+    el('span', { className: 'pos', textContent: i + 1 }),
+    el('span', { className: 'who' }, el('b', { textContent: p.me ? `${p.name} (you)` : p.name }), title.has(p.name) ? el('small', { className: 'tag', textContent: title.get(p.name) }) : null),
+    el('span', { textContent: `${p.xp} XP` }))));
   $('league-hint').textContent = !w.name ? 'Pick a name to join. Only people with a name are shown, and only their name and XP this week.'
     : league.data.length < 2 ? 'Nobody else has joined yet. Ask a friend to pick a name.' : 'Resets every Monday. After a Speed round, you can challenge someone to the same cards.';
   $('name-form').hidden = !!w.name;

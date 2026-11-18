@@ -18,6 +18,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/008_engage.sql` | Reasons to come back: the weekly league, challenges, quests and recap, "Did you use it?", Go deeper and playlists. Needs 006 run first. Safe to run again. |
 | `sql/009_complete.sql` | Flag a wrong card, archive a link, the daily goal, the activity grid, trophies and the "How Hub works" starter deck. Run after 008. Safe to run again. |
 | `sql/010_local_own_ask.sql` | Days in each learner's own time zone, your own notes, photos and PDFs, *Ask about this*, and the *Coming up* forecast. Run after 009. Safe to run again. |
+| `sql/011_xp_shop.sql` | XP you can spend: the shop (streak freezes, double or nothing, extra Speed round time, extra Go deeper rounds, themes and league titles), 2× practice XP for 15 minutes after the day's first play, and Legendary runs on Expert skills. Run after 010; run it again if you ever re-run 007 or 008. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `sql/test-006.mjs` | The same kind of self-check for the reminders. |
 | `supabase/functions/remind/` | The Edge Function that sends the reminders, called once an hour. |
@@ -156,7 +157,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql sql/009_complete.sql sql/010_local_own_ask.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql sql/009_complete.sql sql/010_local_own_ask.sql sql/011_xp_shop.sql
 ```
 
 ```bash

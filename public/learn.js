@@ -2,9 +2,10 @@
 // Only the Starter's first answer to each card goes through lc_grade_mine (the schedule);
 // repeats and practice only give XP through lc_award_mine. Everything after the Starter is optional.
 import { closeEnough, shuffle, grade, LEVELS } from './text.js';
-import { icon, skillLevels } from './links.js';
+import { icon, skillLevels, loadLinks } from './links.js';
 import { shareButton } from './share.js';
 import { play, soundToggle, confetti } from './sound.js';
+import { canBuy, spendable, nudge, buy, hush } from './shop.js';
 
 const COLS = 'id, source_id, question, options, answer, explanation, box, last_result, reviews';
 const STARTER_XP = 10;
@@ -181,11 +182,12 @@ async function starter() {
   stage(el('div', { className: 'results' }, badge,
     el('h2', { textContent: 'Day done' }),
     n > before ? el('p', { className: 'streak-up', textContent: streakLine(n) }) : null,
-    freezeLine(res),
+    freezeLine(res), boostLine(res),
     ...ups.map((k) => el('p', { className: 'streak-up', textContent: `Level up: ${k} is now ${LEVELS[now[k].lv]}.` })),
+    ...await legendOffers(ups.filter((k) => now[k].lv === 3)), res ? await betOffer() : null,
     ...gains.map((k) => el('p', { className: 'muted', textContent: `${k}: ${levels[k]?.pct ?? 0}% → ${now[k].pct}% toward mastery.` })),
     tiles(...tally(t)),
-    tiles(['XP', `+${STARTER_XP}`, 'ink'], res && ['Streak', days(n), 'ink'], res && ['Freezes', `${res.freezes ?? 0}/2`, 'blue']),
+    tiles(xpTile(res, STARTER_XP), res && ['Streak', days(n), 'ink'], res && ['Freezes', `${res.freezes ?? 0}/2`, 'blue']),
     tomorrow ? el('p', { className: 'muted', textContent: `Tomorrow: ${tomorrow} ${tomorrow === 1 ? 'card' : 'cards'} on your track.` }) : null,
     el('p', { className: 'muted', textContent: 'Want more? All optional:' }), menu(false), back()));
   // The session's peak: confetti every day the Starter is cleared, a bigger burst on a milestone or a flawless S.
@@ -217,6 +219,21 @@ const freezeLine = (res) => {
     res?.earned && `You earned a streak freeze: ${res.freezes} of 2.`].filter(Boolean).join(' ');
   return text ? el('p', { className: 'muted', textContent: text }) : null;
 };
+// The Starter boost (sql/011): the play that first counts today doubles practice XP for 15 minutes.
+const boostLine = (res) => res?.boost_until && Date.parse(res.boost_until) > Date.now()
+  ? el('p', { className: 'streak-up', textContent: '2× XP on practice games for the next 15 minutes.' }) : null;
+// Offers on Day done (sql/011): the bet while the streak is fresh, and a Legendary run for a skill that just reached Expert.
+async function betOffer() {
+  const r = await canBuy('wager');
+  return r && nudge('wager', 'Keep it going? Bet 50 XP you play 7 more days in a row, and get 100 back.', `Bet ${r.price} XP`, buy('wager'));
+}
+async function legendOffers(skills) {
+  const skill = skills.find((k) => k !== 'Other');
+  if (!skill || (await spendable() ?? 0) < 100) return [];
+  return [nudge(`legend-${skill}`, `${skill} is Expert. Try a Legendary run: every card, no misses.`, 'Try it: 100 XP', async () => { playLegendary(skill); })];
+}
+// What the server actually gave: doubled inside a boost. Before sql/011 there's no gained, so the asked-for XP.
+const xpTile = (res, xp) => { const got = res?.gained ?? xp; return [got > xp ? 'XP (2×)' : 'XP', `+${got}`, 'ink']; };
 
 // One key idea per card, so a dense topic reads a bite at a time. Back and Next step through them.
 function study(s) {
@@ -274,7 +291,9 @@ async function drill(cards, onFirst, typeWellKnown = false) {
 
 async function solo(key, dayDone = false) {
   const [name, game] = GAMES[key];
-  const { xp, note, stats = [], best, flawless, seen } = await game(await gameCards());
+  const extra = key === 'speed' && await useExtraTime();
+  const r = await game(await gameCards(), extra ? 75 : 60);
+  const { xp, note, stats = [], flawless } = r, best = extra ? null : r.best, seen = extra ? null : r.seen;
   const res = xp || dayDone ? await award(xp, dayDone) : null;
   // Personal best on this device, higher is better. The first score only sets it; beating it is the reward.
   let prev = null;
@@ -283,12 +302,61 @@ async function solo(key, dayDone = false) {
   const head = el('h2', { textContent: record ? `${name}: new best!` : name });
   play(record || flawless ? 'done' : 'clear');
   stage(el('div', { className: 'results' }, head, el('p', { textContent: note }),
-    dayDone ? freezeLine(res) : null,
+    dayDone ? freezeLine(res) : null, dayDone ? boostLine(res) : null, dayDone && res ? await betOffer() : null,
     stats.length ? tiles(...stats) : null,
-    tiles(['XP', `+${xp}`, 'ink'], dayDone && res && ['Streak', days(res.new_streak), 'ink']),
+    tiles(xpTile(res, xp), dayDone && res && ['Streak', days(res.new_streak), 'ink']),
     seen?.length >= 2 ? await challengeForm(seen, best) : null, back()));
   if (record || flawless) confetti(head);
 }
+
+// Extra time from the shop (sql/011): offered before a Speed round when you hold some, or can buy one
+// (until "Play 60 seconds" says not today).
+async function useExtraTime() {
+  const { data: p } = await sb.from('lc_profile').select('*').maybeSingle();
+  const held = p?.extra_time ?? 0;
+  const offer = held ? null : await canBuy('time');
+  if (!held && !offer) return false;
+  const use = await new Promise((resolve) => {
+    const go = btn(held ? 'Use it: 75 seconds' : `Buy and use: ${offer.price} XP`, 'btn-go', () => resolve(true));
+    stage(el('div', { className: 'results' }, el('h2', { textContent: 'Speed round' }),
+      el('p', { textContent: held ? `You hold ${held} extra time. Use one for +15 seconds?` : 'Want 75 seconds instead of 60? Extra time adds 15.' }),
+      el('p', { className: 'muted', textContent: "A longer round sets no personal best and can't be sent as a challenge." }),
+      el('div', { className: 'row' }, go, btn('Play 60 seconds', 'btn-light', () => resolve(false)))));
+    go.focus();
+  });
+  if (!use) { if (!held) hush('time'); return false; }
+  if (!held) must(await sb.rpc('lc_buy', { p_item: 'time' }));
+  must(await sb.rpc('lc_use_time')); refresh();
+  return true;
+}
+
+// Legendary (sql/011): every card of an Expert skill, up to 15, no "Not sure", and one miss ends it. 100 XP a try.
+export const playLegendary = (skill) => run(async () => {
+  const cards = shuffle(must(await sb.from('lc_cards').select(COLS).eq('skill', skill)).filter((c) => Array.isArray(c.options) && answerOf(c))).slice(0, 15);
+  if (cards.length < 2) throw new Error('This skill needs at least 2 cards for a Legendary run.');
+  const id = must(await sb.rpc('lc_legendary_start', { p_skill: skill })); // paid here, before the first card
+  refresh();
+  const marks = [];
+  for (const [i, card] of cards.entries()) {
+    const bar = runbar(cards.length, marks, `Legendary · ${cards.length - i} left`);
+    const choice = await new Promise((resolve) => stage(bar, el('p', { className: 'prompt', textContent: `${skill}: no misses allowed` }),
+      el('h2', { textContent: card.question }), options(card, resolve)));
+    const kind = choice === card.answer ? 'perfect' : 'miss';
+    marks.push(kind);
+    await reveal(card, choice, kind === 'miss' ? 'One miss ends a Legendary run.' : null, kind, runbar(cards.length, marks, `${cards.length - i - 1} left`), true, i);
+    if (kind === 'miss') break;
+  }
+  const won = marks.length === cards.length && !marks.includes('miss');
+  const xp = must(await sb.rpc('lc_legendary_finish', { p_id: id, p_won: won }));
+  refresh();
+  if (won) loadLinks(); // the Skills list shows the new Legendary tag
+  const head = el('h2', { textContent: won ? `${skill} is Legendary!` : 'Not this time' });
+  play(won ? 'done' : 'clear');
+  stage(el('div', { className: 'results' }, head,
+    el('p', { textContent: won ? `All ${cards.length} right. The Legend title is yours: wear it from the XP shop.` : `${marks.length - 1} of ${cards.length} before the miss. Try again any time for 100 XP.` }),
+    tiles(['Perfect', marks.filter((k) => k === 'perfect').length, 'mint'], ['XP', `+${xp}`, 'ink']), back()));
+  if (won) confetti(head, 140);
+});
 
 // After a Speed round: send the cards you just played, and your score, to someone in the league.
 async function challengeForm(seen, score) {
@@ -319,7 +387,7 @@ export const playChallenge = (c) => run(async () => {
   play(won ? 'done' : 'clear');
   stage(el('div', { className: 'results' }, head, el('p', { textContent: r.note }),
     dayDone ? freezeLine(res) : null,
-    tiles(['You', f.their_score, won ? 'mint' : 'ink'], [f.other, f.score, won || tie ? 'ink' : 'coral'], ['XP', `+${r.xp}`, 'ink']), back()));
+    tiles(['You', f.their_score, won ? 'mint' : 'ink'], [f.other, f.score, won || tie ? 'ink' : 'coral'], xpTile(res, r.xp)), back()));
   if (won) confetti(head);
 });
 
@@ -457,22 +525,22 @@ function typed(card, bar, hint) {
   });
 }
 
-// Speed round: 60 seconds of multiple choice. 1 XP per right answer; a miss resets the combo.
-function speedRound(cards) {
+// Speed round: 60 seconds of multiple choice (75 with extra time). 1 XP per right answer; a miss resets the combo.
+function speedRound(cards, secs = 60) {
   const pool = cards.filter((c) => c.options.length >= 2);
   if (pool.length < 2) return notEnough();
   return new Promise((resolve) => {
-    const end = Date.now() + 60_000;
+    const end = Date.now() + secs * 1000;
     let right = 0, total = 0, combo = 0, best = 0, order = [], i = 0;
     const seen = new Set(); // the cards shown, so they can be sent as a challenge
-    const clock = el('b', { textContent: '60' }), comboEl = el('b', { textContent: '0' }), pop = popper(), box = el('div', { className: 'speed' });
+    const clock = el('b', { textContent: String(secs) }), comboEl = el('b', { textContent: '0' }), pop = popper(), box = el('div', { className: 'speed' });
     const timer = every(() => {
       const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       if (left && left <= 5 && String(left) !== clock.textContent) play('tick'); // the last five seconds count down
       clock.textContent = left;
       if (left) return;
       clearInterval(timer);
-      resolve({ xp: right, note: `${right} of ${total} right in 60 seconds.`, best: right, seen: [...seen],
+      resolve({ xp: right, note: `${right} of ${total} right in ${secs} seconds.`, best: right, seen: [...seen],
         stats: [['Perfect', right, 'mint'], ['Miss', total - right, 'coral'], ['Max combo', best, 'ink']] });
     }, 200);
     const next = () => {

@@ -21,6 +21,7 @@ Static PWA (`public/`) served by nginx; Supabase for login, data and storage; n8
 ## Capabilities and Constraints
 - Learn: Daily Starter (up to 10 due cards, study key ideas first, "I know it" / "Not sure" before options, flip reveal), practice games (Weak spots, Match pairs, Fill the blank, Speed round), Add a link with live status, Skills mastered/due.
 - Flag a wrong card, archive a link, a daily goal (5, 10 or 20), typed answers for well-known cards, search, share a key idea as an image, a 12-week activity grid, trophies and a starter deck for new people (sql/009).
+- XP shop (sql/011): the header's XP is what you can spend (streak freezes, double or nothing, extra Speed round time, extra Go deeper rounds, themes, league titles); lifetime XP still drives the league and trophies. The day's first play gives 2× practice XP for 15 minutes; Expert skills offer a no-mistakes Legendary run. A one-time intro and small "Not now"-able cards offer a buy when it helps (no freeze on a 3+ day streak, a bet after Day done, extra time before a Speed round, a round past the Go deeper limit, Legendary when a skill hits Expert, the first time you can afford a title or theme).
 - Header shows streak, XP and cards due. One page: Learn, with Today, Progress and History tabs.
 - Plain HTML/CSS/vanilla JS modules, no build step. Keep element ids and JS hooks the scripts depend on.
 

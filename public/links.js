@@ -1,6 +1,8 @@
 import { level, toMastery, LEVELS, norm } from './text.js';
 import { play } from './sound.js';
 import { shareButton } from './share.js';
+import { playLegendary } from './learn.js'; // only called on a click, so the import cycle is harmless
+import { canBuy, nudge, buy } from './shop.js';
 // Add a link → lc_add_link queues it → n8n's "Learning Coach: Web Links" workflow makes the key ideas and cards.
 // The OpenMAIC lesson is on demand: "Build lesson" → lc_request_lesson queues it → the same workflow builds it.
 // The list shows each link's progress and, per skill, how much you've mastered (what the bot's /stats showed).
@@ -148,8 +150,17 @@ export async function skillLevels() {
 async function goDeeper(skill, btn) {
   btn.disabled = true;
   $('skills-error').textContent = '';
+  $('skills-offer').replaceChildren();
   const { data: id, error } = await sb.rpc('lc_go_deeper', { p_skill: skill });
-  if (error) { btn.disabled = false; $('skills-error').textContent = error.message; return; }
+  if (error) {
+    btn.disabled = false;
+    // Out of free rounds today (sql/011): offer one more instead of only saying no.
+    const more = /deeper rounds today/.test(error.message) && await canBuy('deeper');
+    if (!more) { $('skills-error').textContent = error.message; return; }
+    $('skills-offer').replaceChildren(nudge('deeper', `Today's free Go deeper rounds are used. One more on ${skill}?`, `Buy a round: ${more.price} XP`,
+      async () => { const e = await buy('deeper')(); if (!e) goDeeper(skill, btn); return e; }));
+    return;
+  }
   ping(id);
   loadLinks();
 }
@@ -158,10 +169,12 @@ export async function loadLinks() {
   // The next video from an imported playlist, once a day (null when none is due, or before sql/008 is run).
   const drip = await sb.rpc('lc_drip');
   if (drip.data) ping(drip.data);
-  const [src, cards] = await Promise.all([
+  const [src, cards, legend] = await Promise.all([
     sb.from('lc_sources').select('id, url, title, skill, platform, status, note, lesson_url, key_ideas, created_at, lesson_requested_at').is('archived_at', null).order('created_at', { ascending: false }).limit(20),
     sb.from('lc_cards').select('source_id, skill, box, due_at').limit(2000),
+    sb.from('lc_legendary').select('skill').eq('won', true), // an error before sql/011: no Legendary yet
   ]);
+  const legendary = new Set((legend.data ?? []).map((r) => r.skill));
   if (src.error || cards.error) return;
   // A link you were waiting on just turned into cards: the effort you put in pays off, so it gets a chime.
   if (src.data.some((s) => s.status === 'ready' && BUSY.includes(was.get(s.id)))) play('ready');
@@ -176,11 +189,14 @@ export async function loadLinks() {
   $('links-empty').hidden = src.data.length > 0;
   // Ranked by share mastered, most first. Each skill shows its level (Novice to Expert) from that share.
   $('skills').replaceChildren(...Object.entries(skills).sort(([, a], [, b]) => b.mastered / b.total - a.mastered / a.total).map(([name, k]) => {
-    const lv = level(k.mastered, k.total), pct = toMastery(k.steps, k.total);
-    return el('li', {}, el('span', { className: `level lv-${lv}`, textContent: LEVELS[lv] }), el('b', { textContent: name }),
+    const lv = level(k.mastered, k.total), pct = toMastery(k.steps, k.total), isLegend = legendary.has(name);
+    return el('li', {}, el('span', { className: `level lv-${isLegend ? 4 : lv}`, textContent: isLegend ? 'Legendary' : LEVELS[lv] }), el('b', { textContent: name }),
       el('span', { className: 'meter', role: 'img', ariaLabel: `${pct}% toward mastery` }, el('i', { style: `width:${pct}%` })),
       el('small', { textContent: `${pct}% toward mastery · ${k.mastered}/${k.total} mastered · ${k.due} due` }),
-      name === 'Other' ? null : el('button', { type: 'button', className: 'btn btn-light btn-sm', onclick: (e) => goDeeper(name, e.currentTarget) }, 'Go deeper'));
+      name === 'Other' ? null : el('button', { type: 'button', className: 'btn btn-light btn-sm', onclick: (e) => goDeeper(name, e.currentTarget) }, 'Go deeper'),
+      // Expert and not yet Legendary: a no-mistakes run through its cards (sql/011). Before 011, legend.error hides it.
+      name === 'Other' || lv < 3 || isLegend || legend.error ? null
+        : el('button', { type: 'button', className: 'btn btn-dark btn-sm', ariaLabel: `Legendary run on ${name}, 100 XP`, onclick: () => playLegendary(name) }, 'Legendary · 100 XP'));
   }));
   $('skills-card').hidden = !cards.data.length;
 

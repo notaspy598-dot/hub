@@ -450,8 +450,138 @@ if (has010) {
   await as(ME, async () => { await assert.rejects(q('SELECT lc_ask($1, $2)', [k, 'one more?']), /30 questions today/); });
 }
 
+// 011 (when passed, after 010): the XP shop, the Starter boost, double or nothing, extra Go deeper rounds, Legendary.
+const has011 = process.argv.some((f) => f.includes('011'));
+if (has011) {
+  const balance = () => as(ME, async () => (await q('SELECT balance FROM lc_shop() LIMIT 1'))[0].balance);
+  const award = (xp, day) => as(ME, async () => (await q('SELECT * FROM lc_award_mine($1, $2)', [xp, day]))[0]);
+  await db.exec('UPDATE lc_profile SET xp = 1000, xp_spent = 0, freezes = 0, extra_time = 0, last_active = current_date, streak = 3, boost_until = NULL WHERE chat_id = 100');
+
+  // Buying: prices and limits are the server's; spending never lowers the lifetime XP the league and trophies count.
+  await as(ME, async () => {
+    const shop = await q('SELECT * FROM lc_shop()');
+    assert.equal(shop[0].balance, 1000);
+    assert.deepEqual(shop.map((r) => r.item).slice(0, 4), ['freeze', 'wager', 'time', 'deeper']);
+    assert.equal(shop.find((r) => r.item === 'title:legend').state, 'locked');
+    assert.equal((await q("SELECT lc_buy('freeze') AS b"))[0].b, 800);
+    await q("SELECT lc_buy('freeze')");
+    await assert.rejects(q("SELECT lc_buy('freeze')"), /already hold 2/);
+    assert.equal((await q("SELECT state FROM lc_shop() WHERE item = 'freeze'"))[0].state, 'max');
+    await assert.rejects(q("SELECT lc_buy('title:legend')"), /isn't for sale/);
+    await assert.rejects(q("SELECT lc_buy('nope')"), /isn't for sale/);
+    await assert.rejects(q('UPDATE lc_profile SET xp_spent = 0'), /permission denied/);
+    assert.equal((await q("SELECT lc_buy('title:scholar') AS b"))[0].b, 350);
+    await assert.rejects(q("SELECT lc_buy('title:scholar')"), /already have it/);
+    await assert.rejects(q("SELECT lc_buy('theme:ember')"), /Not enough XP: that costs 500, you have 350/);
+    await assert.rejects(q("SELECT lc_wear('theme:ocean')"), /don't have that one/);
+    await assert.rejects(q("SELECT lc_wear('freeze')"), /Only themes and titles/);
+    await q("SELECT lc_wear('title:scholar')");
+    assert.equal((await q("SELECT state FROM lc_shop() WHERE item = 'title:scholar'"))[0].state, 'worn');
+    if (has008) assert.deepEqual(await q('SELECT * FROM lc_league_titles()'), [{ name: 'Ama K', title: 'Scholar' }]);
+    await q("SELECT lc_wear('title:scholar', false)");
+    assert.equal((await q('SELECT badge FROM lc_profile'))[0].badge, null);
+    await q("SELECT lc_buy('time')");
+    assert.equal((await q('SELECT lc_use_time() AS n'))[0].n, 0);
+    await assert.rejects(q('SELECT lc_use_time()'), /No extra time/);
+    const [p] = await q('SELECT xp, xp_spent FROM lc_profile');
+    assert.deepEqual([p.xp, p.xp_spent], [1000, 690], 'lifetime XP stays');
+  });
+  await db.exec('UPDATE lc_profile SET xp_spent = xp, freezes = 0 WHERE chat_id = 100');
+  await as(ME, async () => { await assert.rejects(q("SELECT lc_buy('freeze')"), /Not enough XP/); });
+  await db.exec('UPDATE lc_profile SET xp_spent = 0 WHERE chat_id = 100');
+  await as(OTHER, async () => { await assert.rejects(q("SELECT lc_wear('title:scholar')"), /don't have that one/); });
+
+  // Starter boost: the call that first counts today starts 15 minutes of 2x; awards inside are doubled after the cap.
+  await db.exec('UPDATE lc_profile SET last_active = current_date - 1, boost_until = NULL WHERE chat_id = 100');
+  let a = await award(10, true);
+  assert.equal(a.gained, 10, 'the Starter itself is not doubled');
+  assert.ok(a.boost_until > new Date());
+  const boost = a.boost_until;
+  a = await award(9999, false);
+  assert.equal(a.gained, 200, 'doubled, after the 100 cap');
+  a = await award(5, true);
+  assert.deepEqual([a.gained, a.boost_until], [10, boost], 'a second play the same day does not restart it');
+  await db.exec("UPDATE lc_profile SET boost_until = now() - interval '1 minute' WHERE chat_id = 100");
+  assert.equal((await award(5, false)).gained, 5, 'over after 15 minutes');
+
+  // Double or nothing: 7 more streak days pays back twice the stake; a break loses it, whether or not you play.
+  const wager = async () => (await q('SELECT result FROM lc_wagers WHERE chat_id = 100 ORDER BY id DESC LIMIT 1'))[0]?.result;
+  await db.exec('UPDATE lc_profile SET last_active = current_date - 5, streak = 3 WHERE chat_id = 100');
+  await as(ME, async () => { await assert.rejects(q("SELECT lc_buy('wager')"), /Start a streak first/); });
+  await db.exec('UPDATE lc_profile SET last_active = current_date WHERE chat_id = 100');
+  let before = await balance();
+  await as(ME, async () => {
+    await q("SELECT lc_buy('wager')");
+    await assert.rejects(q("SELECT lc_buy('wager')"), /already have a bet/);
+    const [w] = await q("SELECT state, note FROM lc_shop() WHERE item = 'wager'");
+    assert.deepEqual([w.state, w.note], ['active', 'Bet on: 0 of 7 days done.']);
+  });
+  for (let i = 0; i < 7; i++) {
+    assert.equal(await wager(), null, `still open on day ${i}`);
+    await db.exec('UPDATE lc_profile SET last_active = current_date - 1 WHERE chat_id = 100');
+    await award(0, true);
+  }
+  assert.equal(await wager(), 'won');
+  assert.equal(await balance(), before + 50, 'paid 50, got 100 back');
+  assert.equal((await as(ME, () => q("SELECT note FROM lc_shop() WHERE item = 'wager'")))[0].note, 'You won your last bet: +100 XP.');
+  await as(ME, () => q("SELECT lc_buy('wager')"));
+  await db.exec('UPDATE lc_profile SET last_active = current_date - 3, freezes = 0 WHERE chat_id = 100');
+  await award(0, true); // the streak starts over at 1
+  assert.equal(await wager(), 'lost', 'lost when a play resets the streak');
+  await as(ME, () => q("SELECT lc_buy('wager')"));
+  await db.exec('UPDATE lc_profile SET last_active = current_date - 3, freezes = 0 WHERE chat_id = 100');
+  await as(ME, () => q('SELECT * FROM lc_shop()'));
+  assert.equal(await wager(), 'lost', 'lost as soon as the streak is dead, before any play');
+
+  // Extra Go deeper rounds: each one bought adds one to the free 3 a day, at most 2 a day (008's checks used the 3).
+  if (has008) {
+    const readyDeeper = () => db.exec("UPDATE lc_sources SET status = 'ready' WHERE url = 'hub:deeper'");
+    await readyDeeper();
+    await as(ME, async () => {
+      await assert.rejects(q("SELECT lc_go_deeper('s')"), /3 deeper rounds today. Buy an extra one/);
+      await q("SELECT lc_buy('deeper')");
+      await q("SELECT lc_go_deeper('s')");
+    });
+    await readyDeeper();
+    await as(ME, async () => {
+      await assert.rejects(q("SELECT lc_go_deeper('s')"), /4 deeper rounds/);
+      await q("SELECT lc_buy('deeper')");
+      await assert.rejects(q("SELECT lc_buy('deeper')"), /2 extra rounds today/);
+      assert.equal((await q("SELECT state FROM lc_shop() WHERE item = 'deeper'"))[0].state, 'max');
+    });
+  }
+
+  // Legendary: Expert skills only, 100 XP a try, one finish per try; a win is 40 XP and the Legend title.
+  await db.exec(`INSERT INTO lc_cards (chat_id, skill, question, options, answer, box) VALUES
+    (100, 'leg', 'l1', '["a","b"]', 0, 4), (100, 'leg', 'l2', '["a","b"]', 0, 4), (100, 'leg', 'l3', '["a","b"]', 0, 5), (100, 'leg', 'l4', '["a","b"]', 0, 1),
+    (100, 'low', 'w1', '["a","b"]', 0, 4), (100, 'low', 'w2', '["a","b"]', 0, 1)`);
+  before = await balance();
+  const first = await as(ME, async () => {
+    await assert.rejects(q("SELECT lc_legendary_start('low')"), /Expert first/);
+    await assert.rejects(q("SELECT lc_legendary_start('nope')"), /isn't one of your skills/);
+    return (await q("SELECT lc_legendary_start('leg') AS id"))[0].id;
+  });
+  assert.equal(await balance(), before - 100);
+  await as(OTHER, async () => { await assert.rejects(q('SELECT lc_legendary_finish($1, true)', [first]), /already over/, 'not their run'); });
+  await as(ME, async () => {
+    assert.equal((await q('SELECT lc_legendary_finish($1, false) AS x', [first]))[0].x, 0);
+    await assert.rejects(q('SELECT lc_legendary_finish($1, true)', [first]), /already over/);
+    const xp = (await q('SELECT xp FROM lc_profile'))[0].xp;
+    const id = (await q("SELECT lc_legendary_start('leg') AS id"))[0].id;
+    assert.equal((await q('SELECT lc_legendary_finish($1, true) AS x', [id]))[0].x, 40);
+    assert.equal((await q('SELECT xp FROM lc_profile'))[0].xp, xp + 40);
+    assert.equal((await q("SELECT state FROM lc_shop() WHERE item = 'title:legend'"))[0].state, 'owned');
+    await q("SELECT lc_wear('title:legend')");
+    await assert.rejects(q("SELECT lc_legendary_start('leg')"), /already Legendary/);
+    assert.deepEqual((await q('SELECT skill FROM lc_legendary WHERE won')).map((r) => r.skill), ['leg']);
+  });
+  await as(OTHER, async () => { assert.equal((await q('SELECT id FROM lc_legendary')).length, 0, "cannot see someone else's runs"); });
+}
+
 await db.exec('SET ROLE anon;');
 await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
+if (has011) for (const f of ['lc_shop()', "lc_buy('freeze')", "lc_wear('theme:ember')", 'lc_use_time()', 'lc_league_titles()', "lc_legendary_start('s')", 'lc_legendary_finish(1, true)', 'lc_catalog()'])
+  await assert.rejects(q(`SELECT * FROM ${f}`), /permission denied/);
 if (has010) for (const f of ["lc_set_tz('UTC')", 'lc_forecast()', "lc_add_own('t', 'x')", "lc_ask(1, 'q')"])
   await assert.rejects(q(`SELECT * FROM ${f}`), /permission denied/);
 if (has009) for (const f of ['lc_flag_card(1)', 'lc_archive_link(1)', 'lc_restore_link(1)', 'lc_set_goal(5)', 'lc_activity()', 'lc_lifetime()', 'lc_starter_deck()'])

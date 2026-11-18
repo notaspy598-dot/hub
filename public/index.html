@@ -53,8 +53,8 @@
     <header class="hud">
       <strong class="wordmark">Hub</strong>
       <div class="stats" aria-live="polite">
-        <span class="stat stat-coral" title="Day streak"><svg class="ico"><use href="#i-flame"/></svg><b id="streak">0</b><small>day streak</small><span class="freeze" title="Streak freezes: a missed day uses one instead of ending your streak. Earn one every 7 days, hold up to 2."><svg class="ico"><use href="#i-snowflake"/></svg><b id="freezes">0</b><small>freezes</small></span></span>
-        <span class="stat stat-gold" title="XP"><svg class="ico"><use href="#i-bolt"/></svg><b id="xp">0</b><small>XP</small></span>
+        <span class="stat stat-coral" title="Day streak"><svg class="ico"><use href="#i-flame"/></svg><b id="streak">0</b><small>day streak</small><span class="freeze" title="Streak freezes: a missed day uses one instead of ending your streak. Earn one every 7 days or buy one with XP, hold up to 2."><svg class="ico"><use href="#i-snowflake"/></svg><b id="freezes">0</b><small>freezes</small></span></span>
+        <button id="shop-open" type="button" class="stat stat-gold" title="XP to spend: open the shop"><svg class="ico"><use href="#i-bolt"/></svg><b id="xp">0</b><small>XP</small></button>
         <span class="stat stat-mint" title="Cards due"><svg class="ico"><use href="#i-cards"/></svg><b id="due">0</b><small>due</small></span>
       </div>
       <button id="account-open" class="btn-icon" aria-label="Account" title="Account"><svg class="ico"><use href="#i-user"/></svg></button>
@@ -79,6 +79,8 @@
               <button id="start-starter" class="btn btn-dark"><svg class="ico"><use href="#i-play"/></svg>Start</button>
             </section>
 
+            <div id="nudge" hidden></div>
+
             <section id="use-card" class="panel-box" aria-labelledby="use-title" hidden>
               <h2 id="use-title">Did you use it?</h2>
               <p id="use-text"></p>
@@ -91,6 +93,7 @@
             <section class="panel-box" aria-labelledby="practice-title">
               <h2 id="practice-title">Practice</h2>
               <p class="muted">Optional, any time. Gives XP but never changes when a card comes back.</p>
+              <p id="boost-note" class="streak-note" role="status" hidden></p>
               <div class="games">
                 <button data-game="weak" class="game lane-coral"><span class="key">W</span><span><b>Weak spots</b><small>Cards you keep missing</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
                 <button data-game="match" class="game lane-gold"><span class="key">M</span><span><b>Match pairs</b><small>6 pairs against the clock</small></span><svg class="ico chev"><use href="#i-chevron"/></svg></button>
@@ -162,6 +165,7 @@
               <h2 id="skills-title">Skills</h2>
               <ul id="skills" class="skills"></ul>
               <p id="skills-error" class="error" role="alert"></p>
+              <div id="skills-offer"></div>
             </section>
             <section id="trophies-card" class="panel-box" aria-labelledby="trophies-title" hidden>
               <h2 id="trophies-title">Trophies</h2>
@@ -233,6 +237,35 @@
     </section>
 
     <button id="logout" type="button" class="btn btn-light"><svg class="ico"><use href="#i-logout"/></svg>Log out</button>
+  </dialog>
+
+  <dialog id="shop" class="account" aria-labelledby="shop-title">
+    <div class="account-head">
+      <h2 id="shop-title">Spend XP</h2>
+      <form method="dialog"><button class="btn-icon" aria-label="Close" title="Close"><svg class="ico"><use href="#i-x"/></svg></button></form>
+    </div>
+    <p class="shop-balance"><svg class="ico"><use href="#i-bolt"/></svg><b id="shop-balance" class="display">0</b> XP to spend</p>
+    <p class="muted">Spending never lowers your league score or trophies: those count every XP you've earned.</p>
+    <p id="shop-msg" class="error" role="alert"></p>
+    <div id="shop-list" class="shop-list"></div>
+  </dialog>
+
+  <dialog id="shop-intro" class="account" aria-labelledby="shop-intro-title">
+    <div class="account-head">
+      <h2 id="shop-intro-title">Your XP buys things now</h2>
+      <form method="dialog"><button class="btn-icon" aria-label="Close" title="Close"><svg class="ico"><use href="#i-x"/></svg></button></form>
+    </div>
+    <p>The XP number at the top is what you can spend. Tap it any time to open the shop.</p>
+    <ul class="intro-list">
+      <li><b>Streak freeze</b> keeps your streak through a missed day.</li>
+      <li><b>Double or nothing</b>: bet 50 XP on 7 more days and win 100.</li>
+      <li><b>Themes and titles</b> to show off in the league.</li>
+    </ul>
+    <p class="muted">Spending never lowers your league score or trophies. And the day's first play gives you 2× practice XP for 15 minutes.</p>
+    <div class="row">
+      <button id="shop-intro-open" type="button" class="btn btn-go">Open the shop</button>
+      <form method="dialog" class="row"><button class="btn btn-light">Later</button></form>
+    </div>
   </dialog>
 </body>
 </html>
