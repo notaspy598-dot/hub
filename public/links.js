@@ -64,6 +64,52 @@ export const ideas = (list, title) => el('ol', { className: 'ideas', ariaLabel: 
     el('small', { textContent: `${i + 1} of ${list.length}` }), el('b', { textContent: k.point }), k.explain ? el('p', { textContent: k.explain }) : null,
     shareButton(k, title, i))));
 
+// Ask about this (sql/010): a question on a link's key ideas, answered by n8n from that link's text.
+// The answer lands in lc_asks and the box polls for it, so it carries on when the list re-renders around it.
+const askPing = (id) => webhook && fetch(`${webhook}?step=ask&ask_id=${id}`, { method: 'POST', mode: 'no-cors' }).catch(() => {});
+function askBox(sourceId) {
+  const list = el('ol', { className: 'asks' });
+  const err = el('p', { className: 'error', role: 'alert' });
+  const input = el('input', { maxLength: 500, required: true, placeholder: 'Ask about this…', ariaLabel: 'Your question about these key ideas', autocomplete: 'off' });
+  const box = el('div', { className: 'ask' }, list,
+    el('form', { className: 'inline-form', onsubmit: ask }, input, el('button', { type: 'submit', className: 'btn btn-light' }, 'Ask')), err);
+  list.setAttribute('aria-live', 'polite');
+  let timer, loaded = false;
+  async function load() {
+    clearTimeout(timer);
+    if (loaded && !box.isConnected) return; // the list re-rendered and a fresh box took over
+    loaded = true;
+    const { data, error } = await sb.from('lc_asks').select('id, question, answer, created_at').eq('source_id', sourceId).order('id', { ascending: false }).limit(5);
+    if (error) { box.hidden = true; return; } // before sql/010 is run
+    // n8n answers within a minute; after 2 the request was lost (n8n down, or the workflow errored).
+    const waiting = (a) => !a.answer && Date.now() - Date.parse(a.created_at) < 120e3;
+    list.replaceChildren(...data.reverse().map((a) => el('li', {}, el('b', { textContent: a.question }),
+      el('p', { className: a.answer ? '' : 'muted', textContent: a.answer || (waiting(a) ? 'Thinking…' : 'No answer came back. Try asking again.') }))));
+    if (data.some(waiting)) timer = setTimeout(load, 3000);
+  }
+  async function ask(e) {
+    e.preventDefault();
+    const b = e.target.querySelector('button');
+    b.disabled = true; err.textContent = '';
+    const { data: id, error } = await sb.rpc('lc_ask', { p_source: sourceId, p_question: input.value });
+    b.disabled = false;
+    if (error) { err.textContent = error.message; return; }
+    input.value = '';
+    askPing(id);
+    load();
+  }
+  box.load = () => { if (!loaded) load(); };
+  return box;
+}
+// A link's key ideas, folded, with the Ask box under them. It loads its questions only once opened.
+const keyIdeas = (s, open = false, toggled) => {
+  const box = askBox(s.id);
+  const d = el('details', { open, ontoggle: (e) => { toggled?.(e); if (e.target.open) box.load(); } },
+    el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas, s.title), box);
+  if (open) box.load();
+  return d;
+};
+
 // Archive: the link leaves Today and its cards stop coming back (sql/009). History keeps it, with Restore.
 async function archive(s, btn) {
   btn.disabled = true;
@@ -125,8 +171,7 @@ export async function loadLinks() {
   $('links').replaceChildren(...src.data.map((s) => el('li', {},
     el('span', { className: 'title', textContent: s.title || s.url }), s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
     el('span', { className: 'state' }, ...status(s, perSource[s.id] || 0)),
-    s.key_ideas?.length ? el('details', { open: opened.has(s.id), ontoggle: (e) => opened[e.target.open ? 'add' : 'delete'](s.id) },
-      el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas, s.title)) : null,
+    s.key_ideas?.length ? keyIdeas(s, opened.has(s.id), (e) => opened[e.target.open ? 'add' : 'delete'](s.id)) : null,
     el('button', { type: 'button', className: 'btn-link archive', textContent: 'Archive', ariaLabel: `Archive ${s.title || s.url}`, onclick: (e) => archive(s, e.currentTarget) }))));
   $('links-empty').hidden = src.data.length > 0;
   // Ranked by share mastered, most first. Each skill shows its level (Novice to Expert) from that share.
@@ -162,13 +207,13 @@ export async function loadHistory() {
   }
   $('history-list').replaceChildren(...[...days].map(([day, rows]) => el('section', { className: 'history-day' }, el('h3', { textContent: day }),
     el('ul', { className: 'links' }, ...rows.map((s) => el('li', {},
-      // Go deeper rounds have no web address, only a title.
+      // Go deeper rounds and your own notes or photos have no web address, only a title.
       /^https?:\/\//.test(s.url) ? el('a', { className: 'title', href: s.url, target: '_blank', rel: 'noopener' }, s.title || s.url, icon('external')) : el('span', { className: 'title', textContent: s.title || s.url }),
       s.skill ? el('span', { className: 'skill', textContent: s.skill }) : null,
       s.lesson_url ? el('span', { className: 'state' }, el('a', { href: s.lesson_url, target: '_blank', rel: 'noopener' }, 'Open lesson', icon('external'))) : null,
       s.archived_at ? el('span', { className: 'state' }, el('span', { className: 'muted', textContent: 'Archived · ' }),
         el('button', { type: 'button', className: 'btn-link', textContent: 'Restore', ariaLabel: `Restore ${s.title || s.url}`, onclick: (e) => restore(s.id, e.currentTarget) })) : null,
-      s.key_ideas?.length ? el('details', {}, el('summary', {}, icon('chevron', 'chev'), 'Key ideas'), ideas(s.key_ideas, s.title)) : null))))));
+      s.key_ideas?.length ? keyIdeas(s) : null))))));
   $('history-empty').hidden = data.length > 0;
 }
 
@@ -200,6 +245,67 @@ async function search() {
     found.length || cards.length ? null : el('p', { className: 'empty', textContent: 'Nothing matches. Try fewer or different words.' })].filter(Boolean));
 }
 
+// Your own material (sql/010): notes, photos or a PDF. Photos go to the private hub-uploads bucket and n8n gets
+// signed links to them; a PDF is read to text right here, so the server only ever sees text.
+// Phone photos are several MB each; a 1600px JPEG reads just as well and keeps the AI request small.
+async function shrink(file) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((ok, bad) => c.toBlob((b) => (b ? ok(b) : bad(new Error(`couldn't read ${file.name}`))), 'image/jpeg', 0.85));
+}
+const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/';
+async function pdfText(file) {
+  const pdfjs = await import(`${PDFJS}pdf.min.mjs`); // loaded only when someone picks a PDF
+  pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}pdf.worker.min.mjs`;
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  let text = '';
+  for (let i = 1; i <= doc.numPages && text.length < 60000; i++) {
+    text += `${(await (await doc.getPage(i)).getTextContent()).items.map((t) => t.str).join(' ')}\n\n`;
+  }
+  return text;
+}
+async function addOwn(e) {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('button[type=submit]'), files = [...f.elements.files.files];
+  const photos = files.filter((x) => x.type.startsWith('image/')), pdfs = files.filter((x) => x.type === 'application/pdf');
+  $('link-error').textContent = '';
+  if (photos.length > 10) { $('link-error').textContent = 'Up to 10 photos at a time.'; return; }
+  btn.disabled = true;
+  try {
+    btn.textContent = pdfs.length ? 'Reading the PDF…' : photos.length ? 'Uploading…' : 'Adding…';
+    let text = f.elements.text.value;
+    for (const p of pdfs) text += `\n\n${await pdfText(p)}`;
+    text = text.trim().slice(0, 60000);
+    if (pdfs.length && !photos.length && text.length < 150) throw new Error("That PDF has no text to read (it's probably scanned). Photograph its pages and add those instead.");
+    const me = (await sb.auth.getSession()).data.session?.user.id;
+    const paths = [];
+    for (const p of photos) {
+      const path = `${me}/${Date.now()}-${paths.length}.jpg`;
+      const { error } = await sb.storage.from('hub-uploads').upload(path, await shrink(p), { contentType: 'image/jpeg' });
+      if (error) throw error;
+      paths.push(path);
+    }
+    // shortcut: the links last 7 days, so a photo post n8n hasn't read within a week needs adding again.
+    let signed = null;
+    if (paths.length) {
+      const { data, error } = await sb.storage.from('hub-uploads').createSignedUrls(paths, 7 * 86400);
+      if (error) throw error;
+      signed = data.map((u) => u.signedUrl);
+    }
+    const title = f.elements.title.value.trim() || pdfs[0]?.name.replace(/\.pdf$/i, '') || '';
+    const { data: id, error } = await sb.rpc('lc_add_own', { p_title: title, p_text: text, p_files: signed });
+    if (error) throw error;
+    f.reset();
+    $('own').open = false;
+    ping(id);
+    loadLinks();
+  } catch (err) { $('link-error').textContent = err.message || String(err); }
+  btn.disabled = false;
+  btn.textContent = 'Add';
+}
+
 export function initLinks(client, hook, changed) {
   sb = client; webhook = hook; onCards = changed;
   if (!webhook) $('link-error').textContent = 'Adding links needs LINK_WEBHOOK set in Coolify.';
@@ -209,6 +315,7 @@ export function initLinks(client, hook, changed) {
   const shared = new URLSearchParams(location.search);
   const found = `${shared.get('url') || ''} ${shared.get('text') || ''}`.match(/https?:\/\/\S+/);
   if (found) { $('link-form').elements.url.value = found[0]; history.replaceState(null, '', location.pathname + location.hash); }
+  $('own-form').addEventListener('submit', addOwn);
   $('link-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = e.target.elements.url, btn = e.target.querySelector('button');

@@ -315,6 +315,7 @@ if (has008) {
 
 // 009 (when passed, after 008): flag, archive, daily goal, best streak, activity, lifetime totals, starter deck.
 const has009 = process.argv.some((f) => f.includes('009'));
+const has010 = process.argv.some((f) => f.includes('010'));
 if (has009) {
   await db.exec('UPDATE lc_cards SET due_at = now() WHERE chat_id = 100');
   await as(ME, async () => {
@@ -357,7 +358,8 @@ if (has009) {
   await as(ME, async () => {
     assert.equal((await q('SELECT best_streak FROM lc_profile'))[0].best_streak, 50, 'best streak survives a reset');
     const today = (await q('SELECT * FROM lc_activity()')).at(-1);
-    assert.equal(today.day.toISOString().slice(0, 10), (await q("SELECT ((now() AT TIME ZONE 'UTC')::date)::text AS d"))[0].d);
+    // 010 moves the grid from UTC days to the session's (the learner's) days.
+    assert.equal(today.day.toISOString().slice(0, 10), (await q(`SELECT (${has010 ? 'current_date' : "(now() AT TIME ZONE 'UTC')::date"})::text AS d`))[0].d);
     assert.ok(today.xp > 0); assert.equal(today.played, true);
     const [life] = await q('SELECT * FROM lc_lifetime()');
     assert.deepEqual([life.best_streak, life.used, life.won], [50, 1, 1], 'Bo scored 12 against 200');
@@ -381,8 +383,77 @@ if (has009) {
   });
 }
 
+// 010 (when passed, after 009): local days, your own text and photos, Ask about this, the forecast.
+if (has010) {
+  const before = (await q("SELECT current_setting('timezone') AS tz"))[0].tz;
+  await as(ME, async () => {
+    await assert.rejects(q("SELECT * FROM lc_set_tz('Mars/Base')"), /Unknown time zone/);
+    assert.equal((await q("SELECT * FROM lc_set_tz('Pacific/Kiritimati')"))[0].changed, true);
+    const [r] = await q("SELECT * FROM lc_set_tz('Pacific/Kiritimati')");
+    assert.deepEqual([r.changed, r.ran_in], [false, before], 'no pre-request here, so it says so');
+    // What PostgREST does per request: lc_local_time, then the query, in one transaction.
+    await db.exec('BEGIN; SELECT lc_local_time();');
+    const [l] = await q("SELECT current_setting('timezone') AS tz, current_date = (now() AT TIME ZONE 'Pacific/Kiritimati')::date AS ok");
+    await db.exec('COMMIT;');
+    assert.deepEqual([l.tz, l.ok], ['Pacific/Kiritimati', true], 'the request runs in my time zone');
+  });
+  assert.equal((await q("SELECT current_setting('timezone') AS tz"))[0].tz, before, 'only for that request');
+  await db.exec('SET ROLE anon; BEGIN; SELECT lc_local_time(); COMMIT; RESET ROLE;'); // logged out: a no-op, not an error
+  assert.equal((await q("SELECT current_setting('timezone') AS tz"))[0].tz, before);
+
+  // A last_active saved as UTC's "tomorrow" (or before flying west) counts as today, not as a new day.
+  await db.exec('UPDATE lc_profile SET last_active = current_date + 1, streak = 6, freezes = 1, freeze_used_on = NULL, freeze_earned_on = NULL WHERE chat_id = 100');
+  const [s] = await as(ME, () => q('SELECT * FROM lc_award_mine(0, true)'));
+  assert.deepEqual([s.new_streak, s.freezes, s.saved, s.earned], [6, 1, false, false]);
+
+  // Forecast: overdue counts as today, hidden cards never count.
+  await db.exec("UPDATE lc_cards SET due_at = now() - interval '2 days' WHERE id = 1; UPDATE lc_cards SET due_at = now() + interval '3 days' WHERE question = 'qa'");
+  await as(ME, async () => {
+    const today = (await q('SELECT current_date::text AS d'))[0].d;
+    const f = await q('SELECT day::text AS day, due FROM lc_forecast(7)');
+    assert.equal(f[0].day, today, 'starts today');
+    const visible = (await q("SELECT count(*)::int AS n FROM lc_cards WHERE due_at < current_date + 7"))[0].n;
+    assert.equal(f.reduce((a, r) => a + r.due, 0), visible, 'only cards I can see');
+    assert.ok(f.length >= 2, 'later days too');
+  });
+
+  // Own material: text needs a few sentences; photos are https links, at most 10; notes ride along after a blank line.
+  const [t, p] = await as(ME, async () => {
+    await assert.rejects(q("SELECT lc_add_own('t', 'too short')"), /a bit more/);
+    await assert.rejects(q("SELECT lc_add_own('', '', ARRAY['http://x/a.jpg'])"), /photo link looks wrong/);
+    await assert.rejects(q("SELECT lc_add_own('', '', array_fill('https://x/a.jpg'::text, ARRAY[11]))"), /Up to 10/);
+    await assert.rejects(q('SELECT lc_add_own($1, $2)', ['t', 'x'.repeat(60001)]), /too long/);
+    return [(await q("SELECT lc_add_own(' Notes ', $1) AS id", ['x'.repeat(200)]))[0].id,
+      (await q("SELECT lc_add_own('', ' see slide 2 ', ARRAY['https://s/a.jpg', 'https://s/b.jpg']) AS id"))[0].id];
+  });
+  assert.deepEqual((await q('SELECT url, title, status, transcript FROM lc_sources WHERE id = $1', [t]))[0],
+    { url: 'hub:text', title: 'Notes', status: 'queued', transcript: 'x'.repeat(200) });
+  assert.deepEqual((await q('SELECT url, title, transcript FROM lc_sources WHERE id = $1', [p]))[0],
+    { url: 'hub:photos', title: 'Your photos', transcript: 'https://s/a.jpg\nhttps://s/b.jpg\n\nsee slide 2' });
+  assert.equal((await q("SELECT count(*)::int AS n FROM storage.buckets WHERE id = 'hub-uploads' AND NOT public"))[0].n, 1);
+
+  // Ask about this: only your own link, once it has key ideas; nobody else sees the question.
+  const k = (await q(`INSERT INTO lc_sources (chat_id, url, status, key_ideas) VALUES (100, 'https://x/k', 'ready', '[{"point":"P","explain":"e"}]') RETURNING id`))[0].id;
+  await as(ME, async () => {
+    await assert.rejects(q('SELECT lc_ask($1, $2)', [t, 'why?']), /isn't ready/, 'not read yet');
+    await assert.rejects(q('SELECT lc_ask($1, $2)', [k, ' x ']), /Type a question/);
+    await assert.rejects(q('SELECT lc_ask($1, $2)', [k, 'x'.repeat(501)]), /under 500/);
+    const a = (await q('SELECT lc_ask($1, $2) AS id', [k, ' Why does this work? ']))[0].id;
+    assert.deepEqual((await q('SELECT question, status, answer FROM lc_asks WHERE id = $1', [a]))[0], { question: 'Why does this work?', status: 'queued', answer: null });
+    await assert.rejects(q("UPDATE lc_asks SET answer = 'x'"), /permission denied/);
+  });
+  await as(OTHER, async () => {
+    await assert.rejects(q('SELECT lc_ask($1, $2)', [k, 'mine now?']), /isn't ready/);
+    assert.equal((await q('SELECT id FROM lc_asks')).length, 0, "cannot read someone else's questions");
+  });
+  await q("INSERT INTO lc_asks (chat_id, source_id, question) SELECT 100, $1, 'q' FROM generate_series(1, 29)", [k]);
+  await as(ME, async () => { await assert.rejects(q('SELECT lc_ask($1, $2)', [k, 'one more?']), /30 questions today/); });
+}
+
 await db.exec('SET ROLE anon;');
 await assert.rejects(q('SELECT * FROM lc_cards'), /permission denied/);
+if (has010) for (const f of ["lc_set_tz('UTC')", 'lc_forecast()', "lc_add_own('t', 'x')", "lc_ask(1, 'q')"])
+  await assert.rejects(q(`SELECT * FROM ${f}`), /permission denied/);
 if (has009) for (const f of ['lc_flag_card(1)', 'lc_archive_link(1)', 'lc_restore_link(1)', 'lc_set_goal(5)', 'lc_activity()', 'lc_lifetime()', 'lc_starter_deck()'])
   await assert.rejects(q(`SELECT * FROM ${f}`), /permission denied/);
 await assert.rejects(q('SELECT * FROM lc_grade_mine(1, 1)'), /permission denied/);

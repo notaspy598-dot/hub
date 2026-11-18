@@ -62,12 +62,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .btn-icon:hover { background: var(--panel); color: var(--ink); }
 
-input, select {
+input, select, textarea {
   font: inherit; width: 100%; min-height: 48px; padding: .7rem .85rem; border: 2px solid var(--line);
   border-radius: var(--r); background: var(--hud); color: var(--ink);
 }
-input::placeholder { color: #8f86c4; }
-input:focus { border-color: var(--ink); outline: none; }
+input::placeholder, textarea::placeholder { color: #8f86c4; }
+input:focus, textarea:focus { border-color: var(--ink); outline: none; }
+textarea { resize: vertical; min-height: 7rem; }
 
 /* Login */
 .login { min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: var(--hud); }
@@ -399,3 +400,26 @@ details[open] summary { margin-bottom: .25rem; }
 .trophies small { color: var(--ink-2); font-size: var(--t-s); }
 .trophies .level { justify-self: start; }
 .stage .dunno { justify-self: start; min-height: 44px; color: var(--ink-2); font-size: var(--t-s); }
+
+/* Your own material: a folded form under Add a link */
+.own { margin-top: .75rem; }
+.own-form { display: grid; gap: .5rem; }
+.own-form .file { display: grid; gap: .35rem; font-size: var(--t-s); color: var(--ink-2); }
+.own-form input[type=file] { min-height: 0; padding: .55rem; }
+.own-form .btn { justify-self: start; }
+
+/* Ask about this: questions and answers under a link's key ideas */
+.ask { display: grid; gap: .5rem; margin-top: .25rem; }
+.asks { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.asks li { display: grid; gap: .25rem; padding: .7rem .8rem; border-radius: var(--r); background: var(--panel-up); }
+.asks p { font-size: var(--t-s); white-space: pre-line; }
+.ask .btn { flex: none; white-space: nowrap; }
+
+/* Coming up: cards due per day for the next week */
+.forecast { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .4rem; align-items: end; }
+.forecast li { display: grid; justify-items: center; gap: .3rem; font-variant-numeric: tabular-nums; }
+.forecast b { font-size: var(--t-s); }
+.forecast .bar { width: 100%; height: 4.5rem; display: flex; align-items: flex-end; border-radius: 6px; background: var(--hud); overflow: hidden; }
+.forecast .bar i { width: 100%; min-height: 2px; background: var(--ink); border-radius: 6px 6px 0 0; }
+.forecast li:first-child .bar i { background: var(--gold); }
+.forecast small { color: var(--ink-2); font-size: var(--t-s); }

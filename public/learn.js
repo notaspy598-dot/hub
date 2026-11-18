@@ -105,7 +105,7 @@ export const setGoal = (n) => { goal = [5, 10, 20].includes(n) ? n : 10; };
 
 // Offline: today's track is kept on the phone, so the Starter plays without a connection. Its first answers wait
 // in 'hub-pending' and go through lc_grade_mine once back online, then the day is awarded.
-// shortcut: the day counts when it syncs, so a round played offline late at night and synced after midnight UTC
+// shortcut: the day counts when it syncs, so a round played offline late at night and synced after midnight
 // counts for the next day; give lc_grade a day parameter if that ever bites.
 const keep = {
   get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },

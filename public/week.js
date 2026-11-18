@@ -3,6 +3,7 @@
 import { el, skillLevels } from './links.js';
 import { playChallenge } from './learn.js';
 import { play, confetti } from './sound.js';
+import { localDay } from './text.js';
 
 const $ = (id) => document.getElementById(id);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -52,21 +53,38 @@ function challenge(c) {
 
 // Progress tab's other two panels (sql/009). Both stay hidden until it's run.
 export async function loadProgress() {
-  const [act, life, levels] = await Promise.all([sb.rpc('lc_activity', { p_days: 84 }), sb.rpc('lc_lifetime'), skillLevels()]);
+  const [act, life, levels, ahead] = await Promise.all([sb.rpc('lc_activity', { p_days: 84 }), sb.rpc('lc_lifetime'), skillLevels(), sb.rpc('lc_forecast', { p_days: 7 })]);
   $('activity-card').hidden = !!act.error;
+  $('forecast-card').hidden = !!ahead.error; // hidden until sql/010 is run
+  if (!ahead.error) forecast(ahead.data);
   $('trophies-card').hidden = !!life.error;
   if (!act.error) activity(act.data);
   if (!life.error && life.data?.[0]) trophies({ ...life.data[0], expert: Object.values(levels).filter((s) => s.lv === 3).length });
 }
 
-// 12 weeks as columns, Monday on top, in UTC days like the streak. Darker means more XP that day.
+// The next 7 days: how many cards come due each day, so a heavy day shows before it arrives. Overdue counts as today.
+function forecast(rows) {
+  const due = new Map(rows.map((r) => [String(r.day).slice(0, 10), r.due]));
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return d; });
+  const counts = days.map((d) => due.get(localDay(d)) ?? 0), max = Math.max(1, ...counts), week = counts.reduce((a, b) => a + b, 0);
+  $('forecast').replaceChildren(...days.map((d, i) => el('li', { title: `${counts[i]} due` },
+    el('b', { textContent: counts[i] }),
+    el('span', { className: 'bar' }, el('i', { style: `height:${Math.round(100 * counts[i] / max)}%` })),
+    el('small', { textContent: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString(undefined, { weekday: 'short' }) }))));
+  $('forecast').ariaLabel = days.map((d, i) => `${i ? d.toLocaleDateString(undefined, { weekday: 'long' }) : 'Today'}: ${counts[i]}`).join(', ');
+  $('forecast-sum').textContent = week ? `${plural(counts[0], 'card')} due today, ${week} over the next 7 days.` : 'Nothing due in the next 7 days.';
+}
+
+// 12 weeks as columns, Monday on top, in your days like the streak. Darker means more XP that day.
 function activity(rows) {
   const xp = new Map(rows.map((r) => [String(r.day).slice(0, 10), r.played ? Math.max(r.xp, 1) : r.xp]));
-  const today = new Date().toISOString().slice(0, 10), t = Date.parse(today);
-  const start = t - ((new Date(t).getUTCDay() + 6) % 7 + 77) * 864e5; // Monday, 11 weeks before this one
+  const today = localDay(), start = new Date();
+  start.setHours(12, 0, 0, 0); // noon, so stepping a day at a time never trips over a DST change
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - 77); // Monday, 11 weeks before this one
   const max = Math.max(1, ...xp.values()), played = rows.filter((r) => r.played).length;
   $('activity').replaceChildren(...Array.from({ length: 84 }, (_, i) => {
-    const day = new Date(start + i * 864e5).toISOString().slice(0, 10), n = xp.get(day) ?? 0;
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const day = localDay(d), n = xp.get(day) ?? 0;
     return el('li', { className: day > today ? 'future' : `${n ? `l${Math.ceil(4 * n / max)}` : ''}${day === today ? ' today' : ''}`, title: `${day}: ${n} XP` });
   }));
   $('activity').ariaLabel = `Played ${plural(played, 'day')} in the last 12 weeks`;

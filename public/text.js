@@ -47,3 +47,17 @@ export const grade = (right, total) => {
   const r = total ? right / total : 0;
   return r >= 1 ? 'S' : r >= 0.8 ? 'A' : r >= 0.6 ? 'B' : 'C';
 };
+
+// A day as YYYY-MM-DD on this device's calendar: the same days the database uses since sql/010.
+export const localDay = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Cards as an Anki import file: tab-separated front, back and tags, with the headers Anki reads.
+// The front lists the options too, so a card reads the same as in Hub.
+const cell = (s) => String(s ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+export const ankiTsv = (cards) => ['#separator:tab', '#html:false', '#tags column:3',
+  ...cards.map((c) => [
+    cell(`${c.question} ${Array.isArray(c.options) ? c.options.map((o, i) => `(${'ABCD'[i] ?? i + 1}) ${o}`).join(' ') : ''}`),
+    cell(`${c.options?.[c.answer] ?? ''}${c.explanation ? ` — ${c.explanation}` : ''}`),
+    cell(c.skill).replace(/\s+/g, '_'),
+  ].join('\t'))].join('\n') + '\n';

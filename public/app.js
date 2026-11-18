@@ -4,6 +4,8 @@ import { initLearn, setGoal, saveToday, savedToday, syncOffline } from './learn.
 import { initLinks, startLinks, loadHistory } from './links.js';
 import { initRemind, loadRemind } from './remind.js';
 import { initWeek, loadWeek, loadProgress } from './week.js';
+import { initExport } from './export.js';
+import { localDay } from './text.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -22,17 +24,26 @@ async function loadStats() {
   if (link.error && !link.error.code) return offlineStats(); // no connection: the track saved on this phone
   $('setup-error').hidden = !link.error;
   if (link.error) $('setup-error').textContent = `Couldn't set up your profile (${link.error.message}). Run sql/003_web.sql in Supabase, then reload.`;
+  // Days follow this phone's time zone (sql/010). It only takes effect from the next request, so it goes first.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const zone = await sb.rpc('lc_set_tz', { p_tz: tz });
   const [profile, due] = await Promise.all([
     sb.from('lc_profile').select('xp, streak, last_active, freezes, daily_goal').maybeSingle(),
     sb.from('lc_cards').select('id', { count: 'exact', head: true }).lte('due_at', new Date().toISOString()),
   ]);
+  // Saved before and still not what the request ran in: PostgREST isn't calling lc_local_time, so days are still UTC.
+  const z = zone.data?.[0];
+  if (!link.error && z && !z.changed && z.ran_in !== tz) {
+    $('setup-error').hidden = false;
+    $('setup-error').textContent = "Days still end at midnight UTC: Supabase's API isn't running sql/010's time-zone step. See README, Local days.";
+  }
   const p = profile.data;
   setGoal(p?.daily_goal ?? 10);
   $('goal').value = String(p?.daily_goal ?? 10);
   $('goal-text').textContent = p?.daily_goal ?? 10;
-  // Same rule as the database (sql/007, UTC days): the streak is alive if you played today or yesterday,
+  // Same rule as the database (sql/007, your days since sql/010): the streak is alive if you played today or yesterday,
   // or missed no more days than you have freezes. Playing today then spends them.
-  const missed = p?.last_active ? Math.round((Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(p.last_active)) / 864e5) - 1 : Infinity;
+  const missed = p?.last_active ? Math.round((Date.parse(localDay()) - Date.parse(p.last_active)) / 864e5) - 1 : Infinity;
   show('xp', p?.xp ?? 0);
   show('streak', p && missed <= (p.freezes ?? 0) ? p.streak : 0);
   show('freezes', p?.freezes ?? 0);
@@ -119,5 +130,6 @@ initLearn(sb, refresh);
 initWeek(sb, refresh);
 initLinks(sb, LINK_WEBHOOK, loadStats);
 initRemind(sb, VAPID_PUBLIC_KEY);
+initExport(sb);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sb.auth.onAuthStateChange((_event, session) => { render(session); });

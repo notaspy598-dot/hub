@@ -108,6 +108,18 @@
                 <span class="field"><svg class="ico"><use href="#i-link"/></svg><input name="url" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=…" aria-label="Link to learn from" autocomplete="off"></span>
                 <button type="submit" class="btn btn-go">Add</button>
               </form>
+              <details id="own" class="own">
+                <summary><svg class="ico chev"><use href="#i-chevron"/></svg>Or add your own: notes, photos or a PDF</summary>
+                <form id="own-form" class="own-form">
+                  <input name="title" maxlength="150" placeholder="Title (optional)" aria-label="Title" autocomplete="off">
+                  <textarea name="text" rows="5" maxlength="60000" placeholder="Paste notes or an article's text…" aria-label="Text to learn from"></textarea>
+                  <label class="file">Photos of pages or slides, or a PDF
+                    <input name="files" type="file" accept="image/*,application/pdf" multiple>
+                  </label>
+                  <p class="muted">Photos are read by the AI, up to 10. A PDF's text is read on this device; a scanned PDF has no text, so photograph its pages instead.</p>
+                  <button type="submit" class="btn btn-go">Add</button>
+                </form>
+              </details>
               <p id="link-error" class="error" role="alert"></p>
               <p id="link-msg" class="muted" role="status"></p>
               <ul id="links" class="links" aria-live="polite"></ul>
@@ -135,6 +147,11 @@
             </section>
           </div>
           <div class="col">
+            <section id="forecast-card" class="panel-box" aria-labelledby="forecast-title" hidden>
+              <h2 id="forecast-title">Coming up</h2>
+              <p id="forecast-sum" class="muted"></p>
+              <ol id="forecast" class="forecast" role="img"></ol>
+            </section>
             <section id="activity-card" class="panel-box" aria-labelledby="activity-title" hidden>
               <h2 id="activity-title">Last 12 weeks</h2>
               <p id="activity-sum" class="muted"></p>
@@ -203,6 +220,16 @@
         <button type="submit" class="btn btn-go">Save</button>
       </form>
       <p id="password-msg" class="error" role="status"></p>
+    </section>
+
+    <section class="account-part" aria-labelledby="data-title">
+      <h3 id="data-title">Your data</h3>
+      <p class="muted">Take your cards with you: a file Anki can import (File → Import), or a full backup of your links, key ideas and cards.</p>
+      <div class="row">
+        <button id="export-anki" type="button" class="btn btn-light btn-sm">Cards for Anki</button>
+        <button id="export-json" type="button" class="btn btn-light btn-sm">Full backup</button>
+      </div>
+      <p id="export-msg" class="muted" role="status"></p>
     </section>
 
     <button id="logout" type="button" class="btn btn-light"><svg class="ico"><use href="#i-logout"/></svg>Log out</button>

@@ -17,6 +17,7 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 | `sql/007_streak_freeze.sql` | Streak freezes: a missed day uses one instead of ending the streak (start with 1, earn 1 every 7 days, hold 2). Run it again if you ever re-run 001 or 002. Safe to run again. |
 | `sql/008_engage.sql` | Reasons to come back: the weekly league, challenges, quests and recap, "Did you use it?", Go deeper and playlists. Needs 006 run first. Safe to run again. |
 | `sql/009_complete.sql` | Flag a wrong card, archive a link, the daily goal, the activity grid, trophies and the "How Hub works" starter deck. Run after 008. Safe to run again. |
+| `sql/010_local_own_ask.sql` | Days in each learner's own time zone, your own notes, photos and PDFs, *Ask about this*, and the *Coming up* forecast. Run after 009. Safe to run again. |
 | `sql/test-001.mjs` | A self-check that runs the SQL against an in-memory Postgres with Supabase's auth and storage stubbed in. |
 | `sql/test-006.mjs` | The same kind of self-check for the reminders. |
 | `supabase/functions/remind/` | The Edge Function that sends the reminders, called once an hour. |
@@ -27,9 +28,9 @@ It needs no Telegram: you add links in the app, and it installs on your phone's 
 
 1. **Close sign-ups.** In Coolify, open your Supabase service → Environment Variables → set `DISABLE_SIGNUP` to `true` → Restart. Otherwise anyone who finds the page could create an account and upload images.
 2. **Create your login.** In Supabase Studio → Authentication → Users → Add user → enter an email and password, and tick *Auto Confirm User*.
-3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`) `sql/007_streak_freeze.sql` (ends with `Hub streak freeze ready`) and, once the reminders' `sql/006_reminders.sql` is in, `sql/008_engage.sql` (ends with `Hub engage ready`). Until 008 is run, the This week panel and the "Did you use it?" card stay hidden. Run 007 before deploying a page that shows streak freezes, or the header reads 0. Then run `sql/009_complete.sql` (ends with `Hub complete ready`) **before** deploying this version of the page: the header, the link list and the daily goal read its new columns, so without it they come up empty. If you ever re-run 001 or 008, run 009 again after.
-4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links you add in the app into key ideas and cards, and builds a lesson when you ask for one, with no Telegram involved. Open it in n8n and:
-   - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides**, and "OpenMAIC access code" on **OpenMAIC Login**.
+3. **Run the database setup.** In Studio → SQL Editor, paste all of `sql/001_hub.sql` and click Run. It should end with `Hub phase 1 ready`. Then do the same with `sql/002_learn.sql` (ends with `Hub phase 2 ready`), `sql/003_web.sql` (ends with `Hub web setup ready`) `sql/004_lessons.sql` (ends with `Hub lessons setup ready`) `sql/005_lesson_on_demand.sql` (ends with `Hub lesson-on-demand setup ready`) `sql/007_streak_freeze.sql` (ends with `Hub streak freeze ready`) and, once the reminders' `sql/006_reminders.sql` is in, `sql/008_engage.sql` (ends with `Hub engage ready`). Until 008 is run, the This week panel and the "Did you use it?" card stay hidden. Run 007 before deploying a page that shows streak freezes, or the header reads 0. Then run `sql/009_complete.sql` (ends with `Hub complete ready`) **before** deploying this version of the page: the header, the link list and the daily goal read its new columns, so without it they come up empty. If you ever re-run 001 or 008, run 009 again after. Then run `sql/010_local_own_ask.sql` (ends with `Hub local days, own material and ask ready`); if you ever re-run 007, 008 or 009, run 010 again after. Until it's run, *Coming up* and *Ask about this* stay hidden and days stay in UTC.
+4. **Turn on the n8n workflow "Learning Coach: Web Links".** It turns links, notes and photos you add in the app into key ideas and cards, answers *Ask about this* questions, and builds a lesson when you ask for one, with no Telegram involved. Open it in n8n and:
+   - Pick credentials on the HTTP nodes: your Apify one on **Get Video Transcript** and **Get Instagram Post**, "OpenRouter account" on **Read Slides** and **Tutor Model (OpenRouter)**, and "OpenMAIC access code" on **OpenMAIC Login**.
    - Check the Postgres nodes use the same credential as the Telegram bot's (they're set to "Postgres account").
    - Click **Publish**. Its address is `https://n8n.kingsolomon.tech/webhook/learn-link`.
 
@@ -100,13 +101,16 @@ Setup, once:
 
 ## Learn tab
 
+- **Your own material:** under *Add a link*, open *Or add your own* and paste notes, pick photos of pages or slides (up to 10), or pick a PDF. Photos are shrunk on the phone, stored in the private `hub-uploads` bucket (each person's own folder) and read by the same AI as carousels. A PDF's text is read on the phone with pdf.js, so only text leaves it; a scanned PDF has no text, so photograph its pages instead. Either way it becomes key ideas and cards like a link. They don't count as "links added" for quests and trophies.
+- **Ask about this:** under a link's *Key ideas* (Today or History), ask a question and an AI tutor answers from that link's text and key ideas, saying when it goes beyond them. It remembers the last few questions on that link, so follow-ups work. 30 questions a day.
 - **Add a link:** a video (YouTube, TikTok, Instagram, Facebook), an Instagram carousel or photo post, or an article. n8n reads it, then writes a short lesson of 3 to 8 **key ideas** and 5 to 15 review cards (about 2 per idea, so denser topics get more) that test only those ideas. For a carousel, Apify fetches the post and an AI model (Gemini Flash Lite on OpenRouter) reads the text on up to 10 slides, plus the caption. The key ideas and cards are ready within a minute or two; tap *Key ideas* under the link to read them. Lessons are on demand: tap *Build lesson* under a link and OpenMAIC builds a deeper lesson around its key ideas (at most 10 a day, since each one is a paid run). *Open lesson* appears as soon as its first parts are built, with a note on how many are ready, and the rest keeps filling in. If a lesson fails, *Try the lesson again* shows instead. If something fails, the reason shows under the link. **Archive** under a link takes it off the list and stops its cards coming back (Undo right after, or *Restore* in History, makes them due again).
 - **Skills:** per skill, how far toward mastery you are (each correct Starter answer moves a card one of its 4 steps, so it grows every day), cards mastered and due, and its level: Novice, Learner (25% mastered), Solid (50%) or Expert (75%). The Day done screen shows each skill's progress today and says when one levels up. **Go deeper** on a skill asks the AI for a new set of key ideas and cards that build on what you already have there, with no link needed (3 a day).
 - **Playlists:** add a public or unlisted YouTube playlist link and its videos queue up; one joins your links each day you open Hub. Only the first 15 videos are read, and Watch Later can't be imported (YouTube keeps it private).
-- **This week:** your XP, days, cards mastered and ideas used since Monday (UTC), three quests that change every week (claim each for bonus XP), and the league: pick a name to join, and only people with a name are shown, with their XP this week. After a Speed round you can challenge someone in the league to the same cards; they get 60 seconds to beat your score. With reminders on, a recap of your week arrives on Sunday at your reminder hour.
+- **This week:** your XP, days, cards mastered and ideas used since Monday (your time), three quests that change every week (claim each for bonus XP), and the league: pick a name to join, and only people with a name are shown, with their XP this week. After a Speed round you can challenge someone in the league to the same cards; they get 60 seconds to beat your score. With reminders on, a recap of your week arrives on Sunday at your reminder hour.
 - **Flag a card:** every answer sheet has *Flag this card as wrong*. A flagged card never comes back and leaves your skills; it stays in the database (`lc_cards.hidden = 'flagged'`) so you can look at what the AI got wrong.
+- **Your data:** under Account, *Cards for Anki* downloads a file Anki imports (File → Import; question and options on the front, answer and explanation on the back, the skill as a tag), and *Full backup* downloads every link, key idea and card as JSON. Flagged and archived cards are left out.
 - **History:** search every key idea and card you have; every word you type must match. *Share as image* on a key idea (there, under a link, or while studying) makes a picture of it for the phone's share sheet, or downloads it on a computer.
-- **Progress:** the last 12 weeks as a grid (darker is more XP that day, UTC days like the streak) and trophies with Bronze, Silver and Gold tiers for best streak, cards mastered, Expert skills, links added, ideas used, challenges won and XP. A new tier gets a celebration the next time you open Progress.
+- **Progress:** the last 12 weeks as a grid (darker is more XP that day, in your days like the streak), *Coming up*: how many cards come due each of the next 7 days, so a heavy day shows before it arrives and trophies with Bronze, Silver and Gold tiers for best streak, cards mastered, Expert skills, links added, ideas used, challenges won and XP. A new tier gets a celebration the next time you open Progress.
 - **First run:** someone with no links at all gets *How Hub works*, 7 key ideas and 8 cards on how Hub teaches, so day one has a track to play.
 - **Did you use it?** A day after you study a link's key ideas, a card asks about one of them: have you put it to use? Yes is +5 XP and counts toward the "use ideas" quest. One a day.
 
@@ -127,6 +131,14 @@ Why it works this way (from the learning research, mainly Dunlosky et al. 2013, 
 | After a miss, asks you to explain the answer in your own words | Self-explanation helps the answer make sense, not just stick. |
 | Weak spots drill | Deliberate practice: spend extra time where you're weakest. |
 
+## Local days
+
+Since `sql/010`, a day ends at midnight where each person is, not at midnight UTC: the streak, the daily Starter, the activity grid, the week, quests and "Did you use it?" all follow it. The page saves the phone's time zone on every load, and `sql/010` tells Supabase's API (PostgREST) to run `lc_local_time` before each request, which switches that request to the person's time zone. Nothing else needs changing.
+
+If the page says **"Days still end at midnight UTC"**, PostgREST isn't running that step. Either its in-database config is off (`PGRST_DB_CONFIG=false` on the rest container), or it already has a `db_pre_request` of its own (010 then prints a warning and leaves it alone). Fix it with one of these, then restart the Supabase rest container: set `PGRST_DB_PRE_REQUEST=public.lc_local_time` on it, or add `PERFORM public.lc_local_time();` to the existing pre-request function.
+
+The bot, n8n and the reminders don't go through it: reminders already use each person's time zone, and the bot is retired.
+
 ## If something's off
 
 - **"Couldn't set up your profile" banner:** run `sql/003_web.sql`, then reload.
@@ -144,7 +156,7 @@ npm i @electric-sql/pglite@0.2.17
 ```
 
 ```bash
-node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql sql/009_complete.sql
+node sql/test-001.mjs sql/001_hub.sql sql/002_learn.sql sql/003_web.sql sql/004_lessons.sql sql/005_lesson_on_demand.sql sql/006_reminders.sql sql/007_streak_freeze.sql sql/008_engage.sql sql/009_complete.sql sql/010_local_own_ask.sql
 ```
 
 ```bash
